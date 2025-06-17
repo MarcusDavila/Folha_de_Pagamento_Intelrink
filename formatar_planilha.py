@@ -10,13 +10,24 @@ PATTERN_CPF = re.compile(r'\d{3}\.?\d{3}\.?\d{3}-?\d{2}')
 
 # CONFIGURAÇÕES DO BANCO - INSIRA SEUS DADOS AQUI!
 DB_CONFIG = {
-   # 'dbname': 'interlink',
+    'dbname': 'interlink',
     'user': 'user_interlink',
     'password': '41Ha1bGT0Lhi',
     'host': '138.2.245.181',
     'port': '5432'
 }
 
+def obter_tipo_pagamento():
+    print("\nEscolha o tipo de pagamento:")
+    print("1 - Salário")
+    print("2 - Adiantamento")
+    print("3 - Férias")
+    while True:
+        escolha = input("Digite o número correspondente (1, 2 ou 3): ").strip()
+        if escolha in ['1', '2', '3']:
+            return escolha
+        print("Opção inválida. Tente novamente.")
+        
 def extrair_valor_monetario(celulas):
     """Procura um valor monetário em uma lista de células, do fim para o início"""
     for cell in reversed(celulas):
@@ -152,6 +163,7 @@ def criar_tabela_postgres(conn):
         agencia VARCHAR,
         num_conta VARCHAR,
         deposito VARCHAR,
+        tipo_pagamento VARCHAR,
         data_insercao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """
@@ -165,9 +177,9 @@ def inserir_dados_postgres(conn, df):
     
     insert_query = sql.SQL("""
     INSERT INTO public_folha_pagamento 
-        (ordem, unidade, contrato, nome, cpf, banco, agencia, num_conta, deposito)
+        (ordem, unidade, contrato, nome, cpf, banco, agencia, num_conta, deposito, tipo_pagamento)
     VALUES
-        (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """)
     
     with conn.cursor() as cursor:
@@ -183,7 +195,10 @@ def inserir_dados_postgres(conn, df):
 
 if __name__ == "__main__":
     pasta_script = os.path.dirname(os.path.abspath(__file__))
-    
+
+    # Solicitar tipo de pagamento ao usuário
+    tipo_pagamento = obter_tipo_pagamento()
+
     arquivos_entrada = [
         os.path.join(pasta_script, "FOLHA1.xlsx"),
         os.path.join(pasta_script, "FOLHA2.xlsx")
@@ -197,6 +212,40 @@ if __name__ == "__main__":
         print("\nCertifique-se que os arquivos estão na mesma pasta do script.")
         input("\nPressione Enter para sair...")
         exit()
+    
+    # Processar arquivos
+    dfs = []
+    for arquivo in arquivos_entrada:
+        df = processar_arquivo(arquivo)
+        if df is not None:
+            dfs.append(df)
+    
+    if not dfs:
+        print("\nNenhum dado válido encontrado nos arquivos.")
+        input("\nPressione Enter para sair...")
+        exit()
+    
+    df_final = pd.concat(dfs, ignore_index=True)
+    df_final['tipo_pagamento'] = tipo_pagamento  # Adiciona a coluna ao DataFrame
+    
+    # Conectar ao PostgreSQL e inserir dados
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        print("Conexão com o PostgreSQL estabelecida com sucesso!")
+        
+        inserir_dados_postgres(conn, df_final)
+        print(f"\nTotal de registros inseridos: {len(df_final)}")
+        
+    except Exception as e:
+        print(f"\nERRO na conexão com o banco de dados: {str(e)}")
+    finally:
+        if conn:
+            conn.close()
+            print("Conexão com o banco encerrada.")
+    
+    print("\nProcesso concluído! Dados inseridos no banco PostgreSQL.")
+    input("\nPressione Enter para sair...")
+    exit()
     
     # Processar arquivos
     dfs = []
