@@ -1,164 +1,246 @@
-INSERT INTO contaapagar_composicao 
 
-(
-    grupo, empresa, filial, unidade, sequencia, sequenciacomposicao,
-    cnpjcpfcodigo, historicodescricao, dtinc, tipotitulo, formapagamento, tipo,
-    avacorpi, adiantamentoliberadoautomatico, reduzido, valortitulo, 
-    quantidadeparcela, valortitulopendente, valortituloutilizado
+--Francisco vem da metadados com o cpf do francisco porem pagamento eh registrado no nome de 'SDAERGS' (SINDICATO DOS DESPACHANTES ADUANEIROS DO RIO GRANDE DO SUL) CNPJ ='02824237000112'
+
+
+INSERT INTO Contaapagar (
+    numerotitulo, numeroparcela, valorpendente, valorpago, valortitulo, 
+    dtprevisaopagamento, dtvencimento, cnpjcpfcodigo, reduzido, dtpagamento, 
+    dtemissaotitulo, dtcartorio, dtprotesto, Sequencia, grupo, empresa, filial, 
+    unidade, composicao, moeda, valortitulomoeda, valormulta, valorjuro, 
+    valordesconto, valordespesacartorio, valordespesaprotesto, observacao, 
+    grupodocumentoorigem, empresadocumentoorigem, filialdocumentoorigem, 
+    unidadedocumentoorigem, cnpjcpfcodigodocumentoorigem, 
+    diferenciadornumerodocumentoorigem, seriedocumentoorigem, 
+    numerosequenciadocumentoorigem, dtemissaodocumentoorigem, dtinc, 
+    codigobarra, linhadigitavel, quantidadeparcela, dtalt, semaforo, 
+    tipopagamento, tipodocumentoorigem, posicaocnab, nroremessa, apropriacao, 
+    bancocredor, agenciacredor, contacredor, cnpjcpfcodigocredor, vinculocredor, 
+    formalancamento, tipotitulo, cnpjcpfcodigoadiantamento, proprietario, veiculo, 
+    reduzidodebito, formapagamento, moedapagamentooutramoeda, 
+    dtcambiopagamentooutramoeda, valorcambiopagamentooutramoeda, 
+    valortitulomoedapagamentooutramoeda, informarmanualmentecontrato, 
+    codigocobranca, tipo, valordespesacartoriomoeda, valormultamoeda, 
+    valordespesaprotestomoeda, valorjuromoeda, valordescontomoeda, valorpagomoeda, 
+    valorpendentemoeda, geracreditopiscofins, naturezabasecalculocredito, 
+    indicadororigemcredito, cstpis, valorbasecalculopis, percaliquotapis, 
+    valorpis, cstcofins, valorbasecalculocofins, percaliquotacofins, valorcofins, 
+    codigoformalancamentointerna, codigodareceitadotributo, identificadorfgts, 
+    lacreconectividadesocial, digitolagreconectividadesocial, 
+    valorreceitabrutaacumulada, percentualsobrereceitabrutaacumulada, 
+    codigousuario, valorrecolhimento, outrosvalores, acrescimos, numeroautenticacao, 
+    protocoloautenticacao, cnpjcpfcodigosacadoravalista
 )
 SELECT 
-    1 AS grupo,                                      
-    1 AS empresa,                                     
-    1 AS filial,                                      
-    1 AS unidade,                                     
-    id AS sequencia,                                  
-    1 AS sequenciacomposicao,                         
-    REPLACE(cpf, '.', '') AS cnpjcpfcodigo,          
-    nome AS historicodescricao,                       
-    data_insercao::DATE AS dtinc,                   
-    4 AS tipotitulo,                                 
-    2 AS formapagamento,                             
-    4 AS tipo,                                       
-    2 AS avacorpi,                                 
-    1 AS adiantamentoliberadoautomatico,            
-    -- 0 AS reduzido,                                   
-    REPLACE(REPLACE(valor, '.', ''), ',', '.')::NUMERIC(15,2) AS valortitulo, 
-    1 AS quantidadeparcela,                          
-    0.00 AS valortitulopendente,                     
-    0.00 AS valortituloutilizado                    
-FROM folha_pagamento;                                 
+    CASE 
+        WHEN :tipo_pagamento = 1 THEN 'FOLHA DE PGTO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
+        WHEN :tipo_pagamento = 2 THEN 'FOLHA DE ADTO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
+        WHEN :tipo_pagamento = 3 THEN 'FÉRIAS'
+        WHEN :tipo_pagamento = 4 THEN 'ADTO 13º SALÁRIO'
+        WHEN :tipo_pagamento = 5 THEN 'RESCISÃO'
+        WHEN :tipo_pagamento = 6 THEN 'PENSÃO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
+        WHEN :tipo_pagamento = 7 THEN 
+            CASE 
+                WHEN FOLHA_PAGAMENTO.cpf IN ('80502237015', '02824237000112') THEN 'PRO LABORE ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
+                ELSE 'FOLHA DE PGTO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
+            END
+        ELSE NULL
+    END AS numerotitulo,
+    1 AS numeroparcela,
+    FOLHA_PAGAMENTO.deposito AS valorpendente,
+    0 AS valorpago,
+    FOLHA_PAGAMENTO.deposito AS valortitulo,
+    FOLHA_PAGAMENTO.data_insercao AS dtprevisaopagamento, -- rever esta lógica, pode ser a data de inserção ou outra lógica
+    FOLHA_PAGAMENTO.data_insercao AS dtvencimento, -- rever esta lógica, pode ser a data de inserção ou outra lógica
+    FOLHA_PAGAMENTO.cpf AS cnpjcpfcodigo,
+    xxx AS reduzido, -- FALTA CRIAR A LOGICA DO REDUZIDO 
+    NULL AS dtpagamento,
+    FOLHA_PAGAMENTO.data_insercao AS dtemissaotitulo,
+    NULL AS dtcartorio,
+    NULL AS dtprotesto,
+    (SELECT COALESCE(MAX(Sequencia), 0) + 1 FROM Contaapagar 
+     WHERE grupo = 1 AND empresa = 1 AND filial = 1 AND unidade = 1) AS Sequencia,
+    1 AS grupo,
+    1 AS empresa,
+    1 AS filial,
+    1 AS unidade,
+    3 AS composicao,
+    1 AS moeda,
+    FOLHA_PAGAMENTO.deposito AS valortitulomoeda,
+    0 AS valormulta,
+    0 AS valorjuro,
+    0 AS valordesconto,
+    0 AS valordespesacartorio,
+    0 AS valordespesaprotesto,
+    NULL AS observacao,
+    NULL AS grupodocumentoorigem,
+    NULL AS empresadocumentoorigem,
+    NULL AS filialdocumentoorigem,
+    NULL AS unidadedocumentoorigem,
+    NULL AS cnpjcpfcodigodocumentoorigem,
+    NULL AS diferenciadornumerodocumentoorigem,
+    NULL AS seriedocumentoorigem,
+    NULL AS numerosequenciadocumentoorigem,
+    NULL AS dtemissaodocumentoorigem,
+    FOLHA_PAGAMENTO.data_insercao AS dtinc,
+    NULL AS codigobarra,
+    NULL AS linhadigitavel,
+    1 AS quantidadeparcela,
+    FOLHA_PAGAMENTO.data_insercao AS dtalt,
+    0 AS semaforo,
+    NULL AS tipopagamento,
+    0 AS tipodocumentoorigem,
+    2 AS posicaocnab,
+    NULL AS nroremessa,
+    2 AS apropriacao,
+    NULL AS bancocredor,
+    NULL AS agenciacredor,
+    NULL AS contacredor,
+    NULL AS cnpjcpfcodigocredor,
+    NULL AS vinculocredor,
+    NULL AS formalancamento,
+    4 AS tipotitulo,
+    NULL AS cnpjcpfcodigoadiantamento,
+    NULL AS proprietario,
+    NULL AS veiculo,
+    NULL AS reduzidodebito,
+    2 AS formapagamento,
+    NULL AS moedapagamentooutramoeda,
+    NULL AS dtcambiopagamentooutramoeda,
+    0 AS valorcambiopagamentooutramoeda,
+    0 AS valortitulomoedapagamentooutramoeda,
+    2 AS informarmanualmentecontrato,
+    NULL AS codigocobranca,
+    2 AS tipo,
+    0 AS valordespesacartoriomoeda,
+    0 AS valormultamoeda,
+    0 AS valordespesaprotestomoeda,
+    0 AS valorjuromoeda,
+    0 AS valordescontomoeda,
+    0 AS valorpagomoeda,
+    FOLHA_PAGAMENTO.deposito AS valorpendentemoeda,
+    2 AS geracreditopiscofins,
+    NULL AS naturezabasecalculocredito,
+    NULL AS indicadororigemcredito,
+    NULL AS cstpis,
+    0 AS valorbasecalculopis,
+    0 AS percaliquotapis,
+    0 AS valorpis,
+    NULL AS cstcofins,
+    0 AS valorbasecalculocofins,
+    0 AS percaliquotacofins,
+    0 AS valorcofins,
+    -1 AS codigoformalancamentointerna,
+    NULL AS codigodareceitadotributo,
+    NULL AS identificadorfgts,
+    NULL AS lacreconectividadesocial,
+    NULL AS digitolagreconectividadesocial,
+    NULL AS valorreceitabrutaacumulada,
+    0 AS percentualsobrereceitabrutaacumulada,
+    :codigousuario AS codigousuario, -- CODIGO DO USUARIO QUE APERTAR O BOTAO - VARIAVEL DA LATROMI
+    0 AS valorrecolhimento,
+    0 AS outrosvalores,
+    0 AS acrescimos,
+    NULL AS numeroautenticacao,
+    NULL AS protocoloautenticacao,
+    NULL AS cnpjcpfcodigosacadoravalista
+FROM folha_pagamento
+WHERE FOLHA_PAGAMENTO.cpf IS NOT NULL 
+  AND FOLHA_PAGAMENTO.data_insercao IS NOT NULL 
+  AND FOLHA_PAGAMENTO.deposito IS NOT NULL;
 
 
-
-UPDATE Contaapagar SET 
-
-
-	numerotitulo = 'FOLHA DE PGTO 052025', 
-	numeroparcela = 1, 
-	valorpendente = 478.22, 
-	valorpago = 0, 
-	valortitulo = 478.22, 
-	dtprevisaopagamento = '2025-06-06', 
-	dtvencimento = '2025-06-06', 
-	cnpjcpfcodigo = '05888812013', 
-	reduzido = 283, 
-	dtpagamento = NULL, 
-	dtemissaotitulo = '2025-06-06', 
-	dtcartorio = NULL, 
-	dtprotesto = NULL, s
-	Sequencia = 838446, 
-	grupo = 1, 
-	empresa = 1, 
-	filial = 1, 
-	unidade = 1, 
-	composicao = 3, 
-	moeda = 1, 
-	valortitulomoeda = 478.22, 
-	valormulta = 0, 
-	valorjuro = 0, 
-	valordesconto = 0, 
-	valordespesacartorio = 0, 
-	valordespesaprotesto = 0, 
-	observacao = NULL, 
-	grupodocumentoorigem = NULL, 
-	empresadocumentoorigem = NULL, 
-	filialdocumentoorigem = NULL, 
-	unidadedocumentoorigem = NULL, 
-	cnpjcpfcodigodocumentoorigem = NULL, 
-	diferenciadornumerodocumentoorigem = NULL, 
-	seriedocumentoorigem = NULL, 
-	numerosequenciadocumentoorigem = NULL, 
-	dtemissaodocumentoorigem = NULL, 
-	dtinc = '2025-06-16', 
-	codigobarra = NULL, 
-	linhadigitavel = NULL, 
-	quantidadeparcela = 1, 
-	dtalt = '2025-06-18', 
-	semaforo = 0, 
-	tipopagamento = NULL, 
-	tipodocumentoorigem = 0, 
-	posicaocnab = 2, 
-	nroremessa = NULL, 
-	apropriacao = 2, 
-	bancocredor = NULL, 
-	agenciacredor = NULL, 
-	contacredor = NULL, 
-	cnpjcpfcodigocredor = NULL, 
-	vinculocredor = NULL, 
-	formalancamento = NULL, 
-	tipotitulo = 4, 
-	cnpjcpfcodigoadiantamento = NULL, 
-	proprietario = NULL, 
-	veiculo = NULL, 
-	reduzidodebito = NULL, 
-	formapagamento = 2, 
-	moedapagamentooutramoeda = NULL, 
-	dtcambiopagamentooutramoeda = NULL, 
-	valorcambiopagamentooutramoeda = 0, 
-	valortitulomoedapagamentooutramoeda = 0, 
-	informarmanualmentecontrato = 2,
-	codigocobranca = NULL, 
-	tipo = 2, 
-	valordespesacartoriomoeda = 0, 
-	valormultamoeda = 0, 
-	valordespesaprotestomoeda = 0, 
-	valorjuromoeda = 0, 
-	valordescontomoeda = 0, 
-	valorpagomoeda = 0, 
-	valorpendentemoeda = 478.22, 
-	geracreditopiscofins = 2, 
-	naturezabasecalculocredito = NULL, 
-	indicadororigemcredito = NULL, 
-	cstpis = NULL, 
-	valorbasecalculopis = 0, 
-	percaliquotapis = 0, 
-	valorpis = 0, 
-	cstcofins = NULL, 
-	valorbasecalculocofins = 0, 
-	percaliquotacofins = 0, 
-	valorcofins = 0, 
-	codigoformalancamentointerna = -1, 
-	codigodareceitadotributo = NULL, 
-	identificadorfgts = NULL, 
-	lacreconectividadesocial = NULL, 
-	digitolagreconectividadesocial = NULL, 
-	valorreceitabrutaacumulada = NULL, 
-	percentualsobrereceitabrutaacumulada = 0, 
-	codigousuario = 483, 
-	valorrecolhimento = 0, 
-	outrosvalores = 0, 
-	acrescimos = 0, 
-	numeroautenticacao = NULL, 
-	protocoloautenticacao = NULL, 
-	cnpjcpfcodigosacadoravalista = NULL
- WHERE Contaapagar.grupo = 1 AND Contaapagar.empresa = 1 AND Contaapagar.filial = 1 AND Contaapagar.unidade = 1 AND Contaapagar.sequencia = 838446;
-
-
-
---variavel do contaapagar.numerotitulo
-
-
-numerotitulo = CASE 
-    WHEN tipo_pagamento = 1 THEN 'FOLHA DE PGTO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
-    WHEN tipo_pagamento = 2 THEN 'FOLHA DE ADTO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
-    WHEN tipo_pagamento = 3 THEN 'FÉRIAS'
-    WHEN tipo_pagamento = 4 THEN 'ADTO 13º SALÁRIO'
-    WHEN tipo_pagamento = 5 THEN 'RESCISÃO'
-    WHEN tipo_pagamento = 6 THEN 'PENSÃO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
-    WHEN tipo_pagamento = 7 THEN 
-        CASE 
-            WHEN cpf = '80502237015' THEN 'PRO LABORE ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
-            ELSE 'FOLHA DE PGTO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
-        END
-    ELSE NULL
-END
-
-
-TIPOS_PAGAMENTO = {
-    "SALARIO": "1",
-    "ADIANTAMENTO": "2",
-    "FERIAS": "3",
-    "ADTO 13º": "4",
-    "RESCISAO": "5",
-    "PENSAO": "6",
-    "PRO LABORE E ESTAGIO": "7"
+INSERT INTO CONTAAPAGAR_COMPOSICAO (
+    grupo, empresa, filial, unidade, sequencia, sequenciacomposicao, 
+    tipodocumentoorigem, grupodocumentoorigem, empresadocumentoorigem, 
+    filialdocumentoorigem, unidadedocumentoorigem, cnpjcpfcodigodocumentoorigem, 
+    dtemissaodocumentoorigem, diferenciadornumerodocumentoorigem, seriedocumentoorigem, 
+    numerosequenciadocumentoorigem, numeroparcela, dtinc, dtalt, dtvencimento, 
+    dtprevisaopagamento, cnpjcpfcodigo, reduzido, valortitulo, quantidadeparcela, 
+    codigobarra, linhadigitavel, usuariomark, sequenciaafretamentocalculo, 
+    valorretencaopagamentopiscofinscsll, tipotitulo, formapagamento, tipo, 
+    tipodocumento, historico, centrocusto, historicodescricao, avacorpi, origem, 
+    tipooorigem, sequencianova, dtliberacaopagamento, tipoprogramacaoembarque, 
+    dtliberacaovalidacao, usuarioliberacaovalidacao, valornegociadodiferenca, 
+    adiantamentoliberadoautomatico, usuarioliberacaooperacional, usuarioliberacaoadiantamento, 
+    dtliberacaoadiantamento, dtliberacaooperacional, usuariomarkliberacaosaldo, 
+    idparcela, saldodevedor, valorsaldoreparcelamento, veiculo, proprietario, 
+    valortitulopendente, valortituloutilizado, tipodocumentoacertoviagem, 
+    filialacertoviagem, unidadeacertoviagem, diferenciadornumeroacertoviagem, 
+    numeroacertoviagem, sequenciaacertoviagem, empresaacertoviagem
+)
+SELECT 
+    1 AS grupo,
+    1 AS empresa,
+    1 AS filial,
+    1 AS unidade,
+    (SELECT COALESCE(MAX(sequencia), 0) + 1 FROM CONTAAPAGAR_COMPOSICAO 
+     WHERE grupo = 1 AND empresa = 1 AND filial = 1 AND unidade = 1) AS sequencia,
+    1 AS sequenciacomposicao,
+    1 AS tipodocumentoorigem,
+    1 AS grupodocumentoorigem,
+    1 AS empresadocumentoorigem,
+    1 AS filialdocumentoorigem,
+    1 AS unidadedocumentoorigem,
+    FOLHA_PAGAMENTO.cpf AS cnpjcpfcodigodocumentoorigem,
+    FOLHA_PAGAMENTO.data_insercao AS dtemissaodocumentoorigem,
+    NULL AS diferenciadornumerodocumentoorigem,
+    NULL AS seriedocumentoorigem,
+    (SELECT COALESCE(MAX(numerosequenciadocumentoorigem), 0) + 1 
+     FROM CONTAAPAGAR_COMPOSICAO 
+     WHERE tipodocumentoorigem = 1 AND grupodocumentoorigem = 1 
+     AND empresadocumentoorigem = 1 AND filialdocumentoorigem = 1 
+     AND unidadedocumentoorigem = 1) AS numerosequenciadocumentoorigem,
+    1 AS numeroparcela,
+    FOLHA_PAGAMENTO.data_insercao AS dtinc,
+    NULL AS dtalt,
+    DATEADD(day, 30, FOLHA_PAGAMENTO.data_insercao) AS dtvencimento, -- Data de vencimento é 30 dias após a data de inserção -- REVER ESTA LÓGICA
+    DATEADD(day, 30, FOLHA_PAGAMENTO.data_insercao) AS dtprevisaopagamento, -- Data de previsão de pagamento é 30 dias após a data de inserção -- REVER ESTA LÓGICA
+    FOLHA_PAGAMENTO.cpf AS cnpjcpfcodigo,
+    xxx AS reduzido, -- FALTA CRIAR A LOGICA DO REDUZIDO 
+    FOLHA_PAGAMENTO.deposito AS valortitulo,
+    1 AS quantidadeparcela,
+    NULL AS codigobarra,
+    NULL AS linhadigitavel,
+    NULL AS usuariomark,
+    NULL AS sequenciaafretamentocalculo,
+    0 AS valorretencaopagamentopiscofinscsll,
+    4 AS tipotitulo,
+    1 AS formapagamento,
+    2 AS tipo,
+    NULL AS tipodocumento,
+    NULL AS historico,
+    NULL AS centrocusto,
+    NULL AS historicodescricao,
+    2 AS avacorpi,
+    NULL AS origem,
+    NULL AS tipooorigem,
+    NULL AS sequencianova,
+    NULL AS dtliberacaopagamento,
+    NULL AS tipoprogramacaoembarque,
+    NULL AS dtliberacaovalidacao,
+    NULL AS usuarioliberacaovalidacao,
+    NULL AS valornegociadodiferenca,
+    1 AS adiantamentoliberadoautomatico,
+    NULL AS usuarioliberacaooperacional,
+    NULL AS usuarioliberacaoadiantamento,
+    NULL AS dtliberacaoadiantamento,
+    NULL AS dtliberacaooperacional,
+    NULL AS usuariomarkliberacaosaldo,
+    NULL AS idparcela,
+    NULL AS saldodevedor,
+    NULL AS valorsaldoreparcelamento,
+    NULL AS veiculo,
+    NULL AS proprietario,
+    0 AS valortitulopendente,
+    0 AS valortituloutilizado,
+    NULL AS tipodocumentoacertoviagem,
+    NULL AS filialacertoviagem,
+    NULL AS unidadeacertoviagem,
+    NULL AS diferenciadornumeroacertoviagem,
+    NULL AS numeroacertoviagem,
+    NULL AS sequenciaacertoviagem,
+    NULL AS empresaacertoviagem
+FROM folha_pagamento
+WHERE FOLHA_PAGAMENTO.cpf IS NOT NULL 
+  AND FOLHA_PAGAMENTO.data_insercao IS NOT NULL 
+  AND FOLHA_PAGAMENTO.deposito IS NOT NULL;
