@@ -5,6 +5,47 @@ WITH SequenciaPgFla AS (
     WHERE grupo = 1 AND empresa = 1 AND filial = 1 AND unidade = 1
 )
 
+RED AS (
+    SELECT 
+        FOLHA_PAGAMENTO.cpf,
+        FOLHA_PAGAMENTO.tipo_pagamento,
+        CASE 
+            WHEN FOLHA_PAGAMENTO.tipo_pagamento = 1 THEN
+                CASE 
+                    WHEN EXISTS (SELECT 1 FROM cadastro_vinculo WHERE cadastro_vinculo.cpf = FOLHA_PAGAMENTO.cpf AND cadastro_vinculo.vinculo = 3) THEN 905
+                    ELSE 283
+                END
+            WHEN FOLHA_PAGAMENTO.tipo_pagamento = 2 THEN
+                CASE 
+                    WHEN EXISTS (SELECT 1 FROM cadastro_vinculo WHERE cadastro_vinculo.cpf = FOLHA_PAGAMENTO.cpf AND cadastro_vinculo.vinculo = 3) THEN 904
+                    ELSE 321
+                END
+            WHEN FOLHA_PAGAMENTO.tipo_pagamento = 3 THEN
+                CASE 
+                    WHEN EXISTS (SELECT 1 FROM cadastro_vinculo WHERE cadastro_vinculo.cpf = FOLHA_PAGAMENTO.cpf AND cadastro_vinculo.vinculo = 3) THEN 906
+                    ELSE 1056
+                END
+            WHEN FOLHA_PAGAMENTO.tipo_pagamento = 4 THEN
+                CASE 
+                    WHEN EXISTS (SELECT 1 FROM cadastro_vinculo WHERE cadastro_vinculo.cpf = FOLHA_PAGAMENTO.cpf AND cadastro_vinculo.vinculo = 3) THEN 908
+                    ELSE 494
+                END
+            WHEN FOLHA_PAGAMENTO.tipo_pagamento = 5 THEN
+                CASE 
+                    WHEN EXISTS (SELECT 1 FROM cadastro_vinculo WHERE cadastro_vinculo.cpf = FOLHA_PAGAMENTO.cpf AND cadastro_vinculo.vinculo = 3) THEN 956
+                    ELSE 955
+                END
+            WHEN FOLHA_PAGAMENTO.tipo_pagamento = 6 THEN 957
+            WHEN FOLHA_PAGAMENTO.tipo_pagamento = 7 THEN
+                CASE 
+                    WHEN FOLHA_PAGAMENTO.cpf IN ('80502237015', '02824237000112') THEN 285
+                    ELSE 905
+                END
+            ELSE NULL 
+        END AS REDUZIDO
+    FROM FOLHA_PAGAMENTO
+)
+
 INSERT INTO Contaapagar (
     numerotitulo, numeroparcela, valorpendente, valorpago, valortitulo, 
     dtprevisaopagamento, dtvencimento, cnpjcpfcodigo, reduzido, dtpagamento, 
@@ -55,10 +96,10 @@ SELECT
     FOLHA_PAGAMENTO.data_insercao AS dtprevisaopagamento, -- rever esta lógica, pode ser a data de inserção ou outra lógica
     FOLHA_PAGAMENTO.data_insercao AS dtvencimento, -- rever esta lógica, pode ser a data de inserção ou outra lógica
     CASE 
-        WHEN FOLHA_PAGAMENTO.cpf = '80502237015' THEN '02824237000112' -- Substitui CPF por CNPJ para Francisco
+        WHEN FOLHA_PAGAMENTO.cpf = '80502237015' THEN '02824237000112' -- Substitui CPF do francisco por CNPJ da SDAERGS
         ELSE FOLHA_PAGAMENTO.cpf
     END AS cnpjcpfcodigo,
-    xxx AS reduzido, -- FALTA CRIAR A LOGICA DO REDUZIDO 
+	(Select reduzido from RED) AS reduzido,
     NULL AS dtpagamento,
     FOLHA_PAGAMENTO.data_insercao AS dtemissaotitulo,
     NULL AS dtcartorio,
@@ -203,7 +244,7 @@ SELECT
     DATEADD(day, 30, FOLHA_PAGAMENTO.data_insercao) AS dtvencimento, -- Data de vencimento é 30 dias após a data de inserção -- REVER ESTA LÓGICA
     DATEADD(day, 30, FOLHA_PAGAMENTO.data_insercao) AS dtprevisaopagamento, -- Data de previsão de pagamento é 30 dias após a data de inserção -- REVER ESTA LÓGICA
     FOLHA_PAGAMENTO.cpf AS cnpjcpfcodigo,
-    xxx AS reduzido, -- FALTA CRIAR A LOGICA DO REDUZIDO 
+    (Select reduzido from RED) AS reduzido, 
     FOLHA_PAGAMENTO.deposito AS valortitulo,
     1 AS quantidadeparcela,
     NULL AS codigobarra,
