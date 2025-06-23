@@ -1,10 +1,11 @@
 
+--utilizado cte para lodiga da sequencia para não repetir a lógica
 WITH Sequencia_Atual AS (
     SELECT COALESCE(MAX(Sequencia), 0) AS sequencia_atual
     FROM Contaapagar 
     WHERE grupo = 1 AND empresa = 1 AND filial = 1 AND unidade = 1
 ),
-
+-- utilizado cte logica do reduzido para não repetir a lógica
 Reduzido_Codigo AS (
      SELECT 
         folha_pagamento.cpf,
@@ -48,7 +49,7 @@ Reduzido_Codigo AS (
         ON cadastro_vinculo.cpf = folha_pagamento.cpf
        AND cadastro_vinculo.vinculo = 3
 ),
-
+-- utilizado este cte abaixo para gerar uma sequencia nova para cada linha, antes estava  gerando somente 1 numero de sequencia para todas as linhas.
 Folha_Com_Sequencia AS (
     SELECT 
         folha_pagamento.*,
@@ -56,7 +57,7 @@ Folha_Com_Sequencia AS (
     FROM folha_pagamento
     CROSS JOIN Sequencia_Atual AS sequencia_atual
 )
-
+ -- inserir registros na tabela Contaapagar
 INSERT INTO Contaapagar (
     numerotitulo, numeroparcela, valorpendente, valorpago, valortitulo, 
     dtprevisaopagamento, dtvencimento, cnpjcpfcodigo, reduzido, dtpagamento, 
@@ -104,8 +105,8 @@ SELECT
     FOLHA_PAGAMENTO.deposito AS valorpendente,
     0 AS valorpago,
     FOLHA_PAGAMENTO.deposito AS valortitulo,
-    FOLHA_PAGAMENTO.data_insercao AS dtprevisaopagamento, -- rever esta lógica, pode ser a data de inserção ou outra lógica
-    FOLHA_PAGAMENTO.data_insercao AS dtvencimento, -- rever esta lógica, pode ser a data de inserção ou outra lógica
+    FOLHA_PAGAMENTO.data_insercao AS dtprevisaopagamento, -- utilizado mesmo da importação, conforme confirmado com responsavel  RH (Lisi)
+    FOLHA_PAGAMENTO.data_insercao AS dtvencimento, -- utilizado mesmo da importação, conforme confirmado com responsavel  RH (Lisi)
     CASE 
         WHEN folha_com_sequencia.cpf = '80502237015' THEN '02824237000112'
         ELSE folha_com_sequencia.cpf
@@ -207,7 +208,7 @@ WHERE folha_com_sequencia.cpf IS NOT NULL
   AND folha_com_sequencia.data_insercao IS NOT NULL 
   AND folha_com_sequencia.deposito IS NOT NULL;
 
-
+  -- Inserir registros na tabela Contaapagar_Composicao
 INSERT INTO CONTAAPAGAR_COMPOSICAO (
     grupo, empresa, filial, unidade, sequencia, sequenciacomposicao, 
     tipodocumentoorigem, grupodocumentoorigem, empresadocumentoorigem, 
@@ -256,8 +257,8 @@ SELECT
     1 AS numeroparcela,
     folha_com_sequencia.data_insercao AS dtinc,
     NULL AS dtalt,
-    DATEADD(day, 30, FOLHA_PAGAMENTO.data_insercao) AS dtvencimento, -- Data de vencimento é 30 dias após a data de inserção -- REVER ESTA LÓGICA
-    DATEADD(day, 30, FOLHA_PAGAMENTO.data_insercao) AS dtprevisaopagamento, -- Data de previsão de pagamento é 30 dias após a data de inserção -- REVER ESTA LÓGICA
+    FOLHA_PAGAMENTO.data_insercaoAS dtvencimento, -- utilizado mesmo da importação, conforme confirmado com responsavel  RH (Lisi)
+    FOLHA_PAGAMENTO.data_insercao AS dtprevisaopagamento, -- utilizado mesmo da importação, conforme confirmado com responsavel  RH (Lisi)
     folha_com_sequencia.cpf AS cnpjcpfcodigo,
     reduzido_codigo.codigo_reduzido, 
     folha_com_sequencia.deposito AS valortitulo,
@@ -309,3 +310,8 @@ JOIN reducao_codigo
 WHERE folha_com_sequencia.cpf IS NOT NULL 
   AND folha_com_sequencia.data_insercao IS NOT NULL 
   AND folha_com_sequencia.deposito IS NOT NULL;
+
+  --falta codigo para deletar todos os registros da tabela folha_pagamento apos a inserção na tabela Contaapagar e Contaapagar_Composicao
+DELETE FROM folha_pagamento;
+
+
