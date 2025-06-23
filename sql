@@ -1,49 +1,60 @@
 
-WITH SequenciaPgFla AS (
-    SELECT COALESCE(MAX(Sequencia), 0) + 1 AS nova_sequencia
+WITH Sequencia_Atual AS (
+    SELECT COALESCE(MAX(Sequencia), 0) AS sequencia_atual
     FROM Contaapagar 
     WHERE grupo = 1 AND empresa = 1 AND filial = 1 AND unidade = 1
-)
+),
 
-RED AS (
-    SELECT 
-        FOLHA_PAGAMENTO.cpf,
-        FOLHA_PAGAMENTO.tipo_pagamento,
+Reduzido_Codigo AS (
+     SELECT 
+        folha_pagamento.cpf,
+        folha_pagamento.tipo_pagamento,
         CASE 
-            WHEN FOLHA_PAGAMENTO.tipo_pagamento = 1 THEN
+            WHEN folha_pagamento.tipo_pagamento = 1 THEN
                 CASE 
-                    WHEN EXISTS (SELECT 1 FROM cadastro_vinculo WHERE cadastro_vinculo.cpf = FOLHA_PAGAMENTO.cpf AND cadastro_vinculo.vinculo = 3) THEN 905
+                    WHEN cadastro_vinculo.cpf IS NOT NULL THEN 905
                     ELSE 283
                 END
-            WHEN FOLHA_PAGAMENTO.tipo_pagamento = 2 THEN
+            WHEN folha_pagamento.tipo_pagamento = 2 THEN
                 CASE 
-                    WHEN EXISTS (SELECT 1 FROM cadastro_vinculo WHERE cadastro_vinculo.cpf = FOLHA_PAGAMENTO.cpf AND cadastro_vinculo.vinculo = 3) THEN 904
+                    WHEN cadastro_vinculo.cpf IS NOT NULL THEN 904
                     ELSE 321
                 END
-            WHEN FOLHA_PAGAMENTO.tipo_pagamento = 3 THEN
+            WHEN folha_pagamento.tipo_pagamento = 3 THEN
                 CASE 
-                    WHEN EXISTS (SELECT 1 FROM cadastro_vinculo WHERE cadastro_vinculo.cpf = FOLHA_PAGAMENTO.cpf AND cadastro_vinculo.vinculo = 3) THEN 906
+                    WHEN cadastro_vinculo.cpf IS NOT NULL THEN 906
                     ELSE 1056
                 END
-            WHEN FOLHA_PAGAMENTO.tipo_pagamento = 4 THEN
+            WHEN folha_pagamento.tipo_pagamento = 4 THEN
                 CASE 
-                    WHEN EXISTS (SELECT 1 FROM cadastro_vinculo WHERE cadastro_vinculo.cpf = FOLHA_PAGAMENTO.cpf AND cadastro_vinculo.vinculo = 3) THEN 908
+                    WHEN cadastro_vinculo.cpf IS NOT NULL THEN 908
                     ELSE 494
                 END
-            WHEN FOLHA_PAGAMENTO.tipo_pagamento = 5 THEN
+            WHEN folha_pagamento.tipo_pagamento = 5 THEN
                 CASE 
-                    WHEN EXISTS (SELECT 1 FROM cadastro_vinculo WHERE cadastro_vinculo.cpf = FOLHA_PAGAMENTO.cpf AND cadastro_vinculo.vinculo = 3) THEN 956
+                    WHEN cadastro_vinculo.cpf IS NOT NULL THEN 956
                     ELSE 955
                 END
-            WHEN FOLHA_PAGAMENTO.tipo_pagamento = 6 THEN 957
-            WHEN FOLHA_PAGAMENTO.tipo_pagamento = 7 THEN
+            WHEN folha_pagamento.tipo_pagamento = 6 THEN 957
+            WHEN folha_pagamento.tipo_pagamento = 7 THEN
                 CASE 
-                    WHEN FOLHA_PAGAMENTO.cpf IN ('80502237015', '02824237000112') THEN 285
+                    WHEN folha_pagamento.cpf IN ('80502237015', '02824237000112') THEN 285
                     ELSE 905
                 END
             ELSE NULL 
-        END AS REDUZIDO
-    FROM FOLHA_PAGAMENTO
+        END AS codigo_reduzido
+    FROM folha_pagamento
+    LEFT JOIN cadastro_vinculo 
+        ON cadastro_vinculo.cpf = folha_pagamento.cpf
+       AND cadastro_vinculo.vinculo = 3
+),
+
+Folha_Com_Sequencia AS (
+    SELECT 
+        folha_pagamento.*,
+        (sequencia_atual.sequencia_atual + ROW_NUMBER() OVER (ORDER BY folha_pagamento.cpf)) AS nova_sequencia
+    FROM folha_pagamento
+    CROSS JOIN Sequencia_Atual AS sequencia_atual
 )
 
 INSERT INTO Contaapagar (
@@ -96,22 +107,22 @@ SELECT
     FOLHA_PAGAMENTO.data_insercao AS dtprevisaopagamento, -- rever esta lógica, pode ser a data de inserção ou outra lógica
     FOLHA_PAGAMENTO.data_insercao AS dtvencimento, -- rever esta lógica, pode ser a data de inserção ou outra lógica
     CASE 
-        WHEN FOLHA_PAGAMENTO.cpf = '80502237015' THEN '02824237000112' -- Substitui CPF do francisco por CNPJ da SDAERGS
-        ELSE FOLHA_PAGAMENTO.cpf
+        WHEN folha_com_sequencia.cpf = '80502237015' THEN '02824237000112'
+        ELSE folha_com_sequencia.cpf
     END AS cnpjcpfcodigo,
-	(Select reduzido from RED) AS reduzido,
+	reducao_codigo.codigo_reduzido,
     NULL AS dtpagamento,
-    FOLHA_PAGAMENTO.data_insercao AS dtemissaotitulo,
+    folha_com_sequencia.data_insercao AS dtemissaotitulo,
     NULL AS dtcartorio,
     NULL AS dtprotesto,
-    (SELECT nova_sequencia FROM SequenciaPgFla) AS sequencia,
+    folha_com_sequencia.nova_sequencia AS Sequencia,
     1 AS grupo,
     1 AS empresa,
     1 AS filial,
     1 AS unidade,
     3 AS composicao,
     1 AS moeda,
-    FOLHA_PAGAMENTO.deposito AS valortitulomoeda,
+    folha_com_sequencia.deposito AS valortitulomoeda,
     0 AS valormulta,
     0 AS valorjuro,
     0 AS valordesconto,
@@ -127,11 +138,11 @@ SELECT
     NULL AS seriedocumentoorigem,
     NULL AS numerosequenciadocumentoorigem,
     NULL AS dtemissaodocumentoorigem,
-    FOLHA_PAGAMENTO.data_insercao AS dtinc,
+    folha_com_sequencia.data_insercao AS dtinc,
     NULL AS codigobarra,
     NULL AS linhadigitavel,
     1 AS quantidadeparcela,
-    FOLHA_PAGAMENTO.data_insercao AS dtalt,
+    folha_com_sequencia.data_insercao AS dtalt,
     0 AS semaforo,
     NULL AS tipopagamento,
     0 AS tipodocumentoorigem,
@@ -163,7 +174,7 @@ SELECT
     0 AS valorjuromoeda,
     0 AS valordescontomoeda,
     0 AS valorpagomoeda,
-    FOLHA_PAGAMENTO.deposito AS valorpendentemoeda,
+    folha_com_sequencia.deposito AS valorpendentemoeda,
     2 AS geracreditopiscofins,
     NULL AS naturezabasecalculocredito,
     NULL AS indicadororigemcredito,
@@ -189,10 +200,12 @@ SELECT
     NULL AS numeroautenticacao,
     NULL AS protocoloautenticacao,
     NULL AS cnpjcpfcodigosacadoravalista
-FROM folha_pagamento
-WHERE FOLHA_PAGAMENTO.cpf IS NOT NULL 
-  AND FOLHA_PAGAMENTO.data_insercao IS NOT NULL 
-  AND FOLHA_PAGAMENTO.deposito IS NOT NULL;
+FROM folha_com_sequencia
+JOIN reducao_codigo 
+    ON folha_com_sequencia.cpf = reducao_codigo.cpf
+WHERE folha_com_sequencia.cpf IS NOT NULL 
+  AND folha_com_sequencia.data_insercao IS NOT NULL 
+  AND folha_com_sequencia.deposito IS NOT NULL;
 
 
 INSERT INTO CONTAAPAGAR_COMPOSICAO (
@@ -219,7 +232,7 @@ SELECT
     1 AS empresa,
     1 AS filial,
     1 AS unidade,
-    (SELECT nova_sequencia FROM SequenciaPgFla) AS sequencia,
+    folha_com_sequencia.nova_sequencia AS sequencia,
     1 AS sequenciacomposicao,
     1 AS tipodocumentoorigem,
     1 AS grupodocumentoorigem,
@@ -227,25 +240,27 @@ SELECT
     1 AS filialdocumentoorigem,
     1 AS unidadedocumentoorigem,
     CASE 
-        WHEN FOLHA_PAGAMENTO.cpf = '80502237015' THEN '02824237000112' -- Substitui CPF por CNPJ para Francisco
-        ELSE FOLHA_PAGAMENTO.cpf
+        WHEN folha_com_sequencia.cpf = '80502237015' THEN '02824237000112'
+        ELSE folha_com_sequencia.cpf
     END AS cnpjcpfcodigodocumentoorigem,
-    FOLHA_PAGAMENTO.data_insercao AS dtemissaodocumentoorigem,
+    folha_com_sequencia.data_insercao AS dtemissaodocumentoorigem,
     NULL AS diferenciadornumerodocumentoorigem,
     NULL AS seriedocumentoorigem,
     (SELECT COALESCE(MAX(numerosequenciadocumentoorigem), 0) + 1 
-     FROM CONTAAPAGAR_COMPOSICAO 
-     WHERE tipodocumentoorigem = 1 AND grupodocumentoorigem = 1 
-     AND empresadocumentoorigem = 1 AND filialdocumentoorigem = 1 
-     AND unidadedocumentoorigem = 1) AS numerosequenciadocumentoorigem,
+     FROM contaapagar_composicao 
+     WHERE tipodocumentoorigem = 1 
+       AND grupodocumentoorigem = 1 
+       AND empresadocumentoorigem = 1 
+       AND filialdocumentoorigem = 1 
+       AND unidadedocumentoorigem = 1) AS numerosequenciadocumentoorigem,
     1 AS numeroparcela,
-    FOLHA_PAGAMENTO.data_insercao AS dtinc,
+    folha_com_sequencia.data_insercao AS dtinc,
     NULL AS dtalt,
     DATEADD(day, 30, FOLHA_PAGAMENTO.data_insercao) AS dtvencimento, -- Data de vencimento é 30 dias após a data de inserção -- REVER ESTA LÓGICA
     DATEADD(day, 30, FOLHA_PAGAMENTO.data_insercao) AS dtprevisaopagamento, -- Data de previsão de pagamento é 30 dias após a data de inserção -- REVER ESTA LÓGICA
-    FOLHA_PAGAMENTO.cpf AS cnpjcpfcodigo,
-    (Select reduzido from RED) AS reduzido, 
-    FOLHA_PAGAMENTO.deposito AS valortitulo,
+    folha_com_sequencia.cpf AS cnpjcpfcodigo,
+    reduzido_codigo.codigo_reduzido, 
+    folha_com_sequencia.deposito AS valortitulo,
     1 AS quantidadeparcela,
     NULL AS codigobarra,
     NULL AS linhadigitavel,
@@ -288,7 +303,9 @@ SELECT
     NULL AS numeroacertoviagem,
     NULL AS sequenciaacertoviagem,
     NULL AS empresaacertoviagem
-FROM folha_pagamento
-WHERE FOLHA_PAGAMENTO.cpf IS NOT NULL 
-  AND FOLHA_PAGAMENTO.data_insercao IS NOT NULL 
-  AND FOLHA_PAGAMENTO.deposito IS NOT NULL;
+FROM folha_com_sequencia
+JOIN reducao_codigo 
+    ON folha_com_sequencia.cpf = reducao_codigo.cpf
+WHERE folha_com_sequencia.cpf IS NOT NULL 
+  AND folha_com_sequencia.data_insercao IS NOT NULL 
+  AND folha_com_sequencia.deposito IS NOT NULL;
