@@ -1,6 +1,9 @@
 
---Francisco vem da metadados com o cpf do francisco porem pagamento eh registrado no nome de 'SDAERGS' (SINDICATO DOS DESPACHANTES ADUANEIROS DO RIO GRANDE DO SUL) CNPJ ='02824237000112'
-
+WITH SequenciaPgFla AS (
+    SELECT COALESCE(MAX(Sequencia), 0) + 1 AS nova_sequencia
+    FROM Contaapagar 
+    WHERE grupo = 1 AND empresa = 1 AND filial = 1 AND unidade = 1
+)
 
 INSERT INTO Contaapagar (
     numerotitulo, numeroparcela, valorpendente, valorpago, valortitulo, 
@@ -51,14 +54,16 @@ SELECT
     FOLHA_PAGAMENTO.deposito AS valortitulo,
     FOLHA_PAGAMENTO.data_insercao AS dtprevisaopagamento, -- rever esta lógica, pode ser a data de inserção ou outra lógica
     FOLHA_PAGAMENTO.data_insercao AS dtvencimento, -- rever esta lógica, pode ser a data de inserção ou outra lógica
-    FOLHA_PAGAMENTO.cpf AS cnpjcpfcodigo,
+    CASE 
+        WHEN FOLHA_PAGAMENTO.cpf = '80502237015' THEN '02824237000112' -- Substitui CPF por CNPJ para Francisco
+        ELSE FOLHA_PAGAMENTO.cpf
+    END AS cnpjcpfcodigo,
     xxx AS reduzido, -- FALTA CRIAR A LOGICA DO REDUZIDO 
     NULL AS dtpagamento,
     FOLHA_PAGAMENTO.data_insercao AS dtemissaotitulo,
     NULL AS dtcartorio,
     NULL AS dtprotesto,
-    (SELECT COALESCE(MAX(Sequencia), 0) + 1 FROM Contaapagar 
-     WHERE grupo = 1 AND empresa = 1 AND filial = 1 AND unidade = 1) AS Sequencia,
+    (SELECT nova_sequencia FROM SequenciaPgFla) AS sequencia,
     1 AS grupo,
     1 AS empresa,
     1 AS filial,
@@ -136,7 +141,7 @@ SELECT
     NULL AS digitolagreconectividadesocial,
     NULL AS valorreceitabrutaacumulada,
     0 AS percentualsobrereceitabrutaacumulada,
-    :codigousuario AS codigousuario, -- CODIGO DO USUARIO QUE APERTAR O BOTAO - VARIAVEL DA LATROMI
+    :codigousuario AS codigousuario, -- CODIGO DO USUARIO QUE APERTAR O BOTAO - VARIAVEL DO LATROMI
     0 AS valorrecolhimento,
     0 AS outrosvalores,
     0 AS acrescimos,
@@ -173,15 +178,17 @@ SELECT
     1 AS empresa,
     1 AS filial,
     1 AS unidade,
-    (SELECT COALESCE(MAX(sequencia), 0) + 1 FROM CONTAAPAGAR_COMPOSICAO 
-     WHERE grupo = 1 AND empresa = 1 AND filial = 1 AND unidade = 1) AS sequencia,
+    (SELECT nova_sequencia FROM SequenciaPgFla) AS sequencia,
     1 AS sequenciacomposicao,
     1 AS tipodocumentoorigem,
     1 AS grupodocumentoorigem,
     1 AS empresadocumentoorigem,
     1 AS filialdocumentoorigem,
     1 AS unidadedocumentoorigem,
-    FOLHA_PAGAMENTO.cpf AS cnpjcpfcodigodocumentoorigem,
+    CASE 
+        WHEN FOLHA_PAGAMENTO.cpf = '80502237015' THEN '02824237000112' -- Substitui CPF por CNPJ para Francisco
+        ELSE FOLHA_PAGAMENTO.cpf
+    END AS cnpjcpfcodigodocumentoorigem,
     FOLHA_PAGAMENTO.data_insercao AS dtemissaodocumentoorigem,
     NULL AS diferenciadornumerodocumentoorigem,
     NULL AS seriedocumentoorigem,
