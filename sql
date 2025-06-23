@@ -1,4 +1,6 @@
-INSERT INTO contaapagar_composicao (
+INSERT INTO contaapagar_composicao 
+
+(
     grupo, empresa, filial, unidade, sequencia, sequenciacomposicao,
     cnpjcpfcodigo, historicodescricao, dtinc, tipotitulo, formapagamento, tipo,
     avacorpi, adiantamentoliberadoautomatico, reduzido, valortitulo, 
@@ -19,7 +21,7 @@ SELECT
     4 AS tipo,                                       
     2 AS avacorpi,                                 
     1 AS adiantamentoliberadoautomatico,            
-    0 AS reduzido,                                   
+    -- 0 AS reduzido,                                   
     REPLACE(REPLACE(valor, '.', ''), ',', '.')::NUMERIC(15,2) AS valortitulo, 
     1 AS quantidadeparcela,                          
     0.00 AS valortitulopendente,                     
@@ -131,3 +133,32 @@ UPDATE Contaapagar SET
 	cnpjcpfcodigosacadoravalista = NULL
  WHERE Contaapagar.grupo = 1 AND Contaapagar.empresa = 1 AND Contaapagar.filial = 1 AND Contaapagar.unidade = 1 AND Contaapagar.sequencia = 838446;
 
+
+
+--variavel do contaapagar.numerotitulo
+
+
+numerotitulo = CASE 
+    WHEN tipo_pagamento = 1 THEN 'FOLHA DE PGTO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
+    WHEN tipo_pagamento = 2 THEN 'FOLHA DE ADTO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
+    WHEN tipo_pagamento = 3 THEN 'FÉRIAS'
+    WHEN tipo_pagamento = 4 THEN 'ADTO 13º SALÁRIO'
+    WHEN tipo_pagamento = 5 THEN 'RESCISÃO'
+    WHEN tipo_pagamento = 6 THEN 'PENSÃO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
+    WHEN tipo_pagamento = 7 THEN 
+        CASE 
+            WHEN cpf = '80502237015' THEN 'PRO LABORE ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
+            ELSE 'FOLHA DE PGTO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
+        END
+    ELSE NULL
+END
+
+
+TIPOS_PAGAMENTO = {
+    "SALARIO": "1",
+    "ADIANTAMENTO": "2",
+    "FERIAS": "3",
+    "ADTO 13º": "4",
+    "RESCISAO": "5",
+    "PENSAO": "6",
+    "PRO LABORE E ESTAGIO": "7"
