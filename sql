@@ -8,53 +8,53 @@ WITH Sequencia_Atual AS (
 -- utilizado cte na do reduzido para não repetir a lógica
 Reduzido_Codigo AS (
      SELECT 
-        folha_pagamento.cpf,
-        folha_pagamento.tipo_pagamento,
+        public_folha_pagamento.cpf,
+        public_folha_pagamento.tipo_pagamento,
         CASE 
-            WHEN folha_pagamento.tipo_pagamento = 1 THEN
+            WHEN public_folha_pagamento.tipo_pagamento = 1 THEN
                 CASE 
                     WHEN cadastro_vinculo.cpf IS NOT NULL THEN 905
                     ELSE 283
                 END
-            WHEN folha_pagamento.tipo_pagamento = 2 THEN
+            WHEN public_folha_pagamento.tipo_pagamento = 2 THEN
                 CASE 
                     WHEN cadastro_vinculo.cpf IS NOT NULL THEN 904
                     ELSE 321
                 END
-            WHEN folha_pagamento.tipo_pagamento = 3 THEN
+            WHEN public_folha_pagamento.tipo_pagamento = 3 THEN
                 CASE 
                     WHEN cadastro_vinculo.cpf IS NOT NULL THEN 906
                     ELSE 1056
                 END
-            WHEN folha_pagamento.tipo_pagamento = 4 THEN
+            WHEN public_folha_pagamento.tipo_pagamento = 4 THEN
                 CASE 
                     WHEN cadastro_vinculo.cpf IS NOT NULL THEN 908
                     ELSE 494
                 END
-            WHEN folha_pagamento.tipo_pagamento = 5 THEN
+            WHEN public_folha_pagamento.tipo_pagamento = 5 THEN
                 CASE 
                     WHEN cadastro_vinculo.cpf IS NOT NULL THEN 956
                     ELSE 955
                 END
-            WHEN folha_pagamento.tipo_pagamento = 6 THEN 957
-            WHEN folha_pagamento.tipo_pagamento = 7 THEN
+            WHEN public_folha_pagamento.tipo_pagamento = 6 THEN 957
+            WHEN public_folha_pagamento.tipo_pagamento = 7 THEN
                 CASE 
-                    WHEN folha_pagamento.cpf IN ('80502237015', '02824237000112') THEN 285
+                    WHEN public_folha_pagamento.cpf IN ('80502237015', '02824237000112', '11156023068') THEN 285
                     ELSE 905
                 END
             ELSE NULL 
         END AS codigo_reduzido
-    FROM folha_pagamento
+    FROM public_folha_pagamento
     LEFT JOIN cadastro_vinculo 
-        ON cadastro_vinculo.cpf = folha_pagamento.cpf
+        ON cadastro_vinculo.cpf = public_folha_pagamento.cpf
        AND cadastro_vinculo.vinculo = 3
 ),
 -- utilizado este cte abaixo para gerar uma sequencia nova para cada linha, antes estava  gerando somente 1 numero de sequencia para todas as linhas.
 Folha_Com_Sequencia AS (
     SELECT 
-        folha_pagamento.*,
-        (sequencia_atual.sequencia_atual + ROW_NUMBER() OVER (ORDER BY folha_pagamento.cpf)) AS nova_sequencia
-    FROM folha_pagamento
+        public_folha_pagamento.*,
+        (sequencia_atual.sequencia_atual + ROW_NUMBER() OVER (ORDER BY public_folha_pagamento.cpf)) AS nova_sequencia
+    FROM public_folha_pagamento
     CROSS JOIN Sequencia_Atual AS sequencia_atual
 )
  -- inserir registros na tabela Contaapagar
@@ -96,19 +96,19 @@ SELECT
         WHEN :tipo_pagamento = 6 THEN 'PENSÃO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
         WHEN :tipo_pagamento = 7 THEN 
             CASE 
-                WHEN FOLHA_PAGAMENTO.cpf IN ('80502237015', '02824237000112') THEN 'PRO LABORE ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
+                WHEN folha_com_sequencia.cpf IN ('80502237015', '02824237000112', '11156023068') THEN 'PRO LABORE ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
                 ELSE 'FOLHA DE PGTO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
             END
         ELSE NULL
     END AS numerotitulo,
     1 AS numeroparcela,
-    FOLHA_PAGAMENTO.deposito AS valorpendente,
+    folha_com_sequencia.deposito AS valorpendente,
     0 AS valorpago,
-    FOLHA_PAGAMENTO.deposito AS valortitulo,
-    FOLHA_PAGAMENTO.data_insercao AS dtprevisaopagamento, -- utilizado mesmo da importação, conforme confirmado com responsavel  RH (Lisi)
-    FOLHA_PAGAMENTO.data_insercao AS dtvencimento, -- utilizado mesmo da importação, conforme confirmado com responsavel  RH (Lisi)
+    folha_com_sequencia.deposito AS valortitulo,
+    folha_com_sequencia.data_insercao AS dtprevisaopagamento, -- utilizado mesmo da importação, conforme confirmado com responsavel  RH (Lisi)
+    folha_com_sequencia.data_insercao AS dtvencimento, -- utilizado mesmo da importação, conforme confirmado com responsavel  RH (Lisi)
     CASE 
-        WHEN folha_com_sequencia.cpf = '80502237015' THEN '02824237000112'
+        WHEN folha_com_sequencia.cpf = '11156023068' THEN '02824237000112'
         ELSE folha_com_sequencia.cpf
     END AS cnpjcpfcodigo,
 	reducao_codigo.codigo_reduzido,
@@ -194,7 +194,7 @@ SELECT
     NULL AS digitolagreconectividadesocial,
     NULL AS valorreceitabrutaacumulada,
     0 AS percentualsobrereceitabrutaacumulada,
-    :codigousuario AS codigousuario, -- CODIGO DO USUARIO QUE APERTAR O BOTAO - VARIAVEL DO LATROMI
+    :{codigousuario} AS codigousuario, -- CODIGO DO USUARIO QUE APERTAR O BOTAO - VARIAVEL DO LATROMI
     0 AS valorrecolhimento,
     0 AS outrosvalores,
     0 AS acrescimos,
@@ -241,7 +241,7 @@ SELECT
     1 AS filialdocumentoorigem,
     1 AS unidadedocumentoorigem,
     CASE 
-        WHEN folha_com_sequencia.cpf = '80502237015' THEN '02824237000112'
+        WHEN folha_com_sequencia.cpf = '11156023068' THEN '02824237000112'
         ELSE folha_com_sequencia.cpf
     END AS cnpjcpfcodigodocumentoorigem,
     folha_com_sequencia.data_insercao AS dtemissaodocumentoorigem,
@@ -257,8 +257,8 @@ SELECT
     1 AS numeroparcela,
     folha_com_sequencia.data_insercao AS dtinc,
     NULL AS dtalt,
-    FOLHA_PAGAMENTO.data_insercaoAS dtvencimento, -- utilizado mesmo da importação, conforme confirmado com responsavel  RH (Lisi)
-    FOLHA_PAGAMENTO.data_insercao AS dtprevisaopagamento, -- utilizado mesmo da importação, conforme confirmado com responsavel  RH (Lisi)
+    public_folha_pagamento.data_insercaoAS dtvencimento, -- utilizado mesmo da importação, conforme confirmado com responsavel  RH (Lisi)
+    public_folha_pagamento.data_insercao AS dtprevisaopagamento, -- utilizado mesmo da importação, conforme confirmado com responsavel  RH (Lisi)
     folha_com_sequencia.cpf AS cnpjcpfcodigo,
     reduzido_codigo.codigo_reduzido, 
     folha_com_sequencia.deposito AS valortitulo,
@@ -312,6 +312,6 @@ WHERE folha_com_sequencia.cpf IS NOT NULL
   AND folha_com_sequencia.deposito IS NOT NULL;
 
   --codigo para deletar todos os registros da tabela folha_pagamento apos a inserção na tabela Contaapagar e Contaapagar_Composicao
-DELETE FROM folha_pagamento;
+DELETE FROM public_folha_pagamento;
 
 
