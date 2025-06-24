@@ -88,13 +88,13 @@ INSERT INTO Contaapagar (
 )
 SELECT 
     CASE 
-        WHEN :tipo_pagamento = 1 THEN 'FOLHA DE PGTO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
-        WHEN :tipo_pagamento = 2 THEN 'FOLHA DE ADTO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
-        WHEN :tipo_pagamento = 3 THEN 'FÉRIAS'
-        WHEN :tipo_pagamento = 4 THEN 'ADTO 13º SALÁRIO'
-        WHEN :tipo_pagamento = 5 THEN 'RESCISÃO'
-        WHEN :tipo_pagamento = 6 THEN 'PENSÃO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
-        WHEN :tipo_pagamento = 7 THEN 
+        WHEN folha_com_sequencia.tipo_pagamento = 1 THEN 'FOLHA DE PGTO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
+        WHEN folha_com_sequencia.tipo_pagamento = 2 THEN 'FOLHA DE ADTO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
+        WHEN folha_com_sequencia.tipo_pagamento = 3 THEN 'FÉRIAS'
+        WHEN folha_com_sequencia.tipo_pagamento = 4 THEN 'ADTO 13º SALÁRIO'
+        WHEN folha_com_sequencia.tipo_pagamento = 5 THEN 'RESCISÃO'
+        WHEN folha_com_sequencia.tipo_pagamento = 6 THEN 'PENSÃO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
+        WHEN folha_com_sequencia.tipo_pagamento = 7 THEN 
             CASE 
                 WHEN folha_com_sequencia.cpf IN ('80502237015', '02824237000112', '11156023068') THEN 'PRO LABORE ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
                 ELSE 'FOLHA DE PGTO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
