@@ -1,11 +1,11 @@
 
---utilizado cte para lodiga da sequencia para não repetir a lógica
+--utilizado cte na logica da sequencia para não repetir a lógica
 WITH Sequencia_Atual AS (
     SELECT COALESCE(MAX(Sequencia), 0) AS sequencia_atual
     FROM Contaapagar 
     WHERE grupo = 1 AND empresa = 1 AND filial = 1 AND unidade = 1
 ),
--- utilizado cte logica do reduzido para não repetir a lógica
+-- utilizado cte na do reduzido para não repetir a lógica
 Reduzido_Codigo AS (
      SELECT 
         folha_pagamento.cpf,
@@ -311,7 +311,7 @@ WHERE folha_com_sequencia.cpf IS NOT NULL
   AND folha_com_sequencia.data_insercao IS NOT NULL 
   AND folha_com_sequencia.deposito IS NOT NULL;
 
-  --falta codigo para deletar todos os registros da tabela folha_pagamento apos a inserção na tabela Contaapagar e Contaapagar_Composicao
+  --codigo para deletar todos os registros da tabela folha_pagamento apos a inserção na tabela Contaapagar e Contaapagar_Composicao
 DELETE FROM folha_pagamento;
 
 
