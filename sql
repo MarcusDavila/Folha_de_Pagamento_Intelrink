@@ -46,7 +46,7 @@ WITH Reduzido_Codigo AS (
 --utilizado este cte abaixo para gerar uma sequencia nova para cada linha, utilizando a função de controle de competitividade, antes estava  gerando somente 1 numero de sequencia para todas as linhas e sem a função de controle, travava lançamento de novos itens na tabela contaapagar.
 Folha_Com_Sequencia AS (
     SELECT 
-        f.*,
+        public_folha_pagamento.*,
         avacorpi.fnc_buscar_sequence(
             2,              -- usuario
             'contaapagar',  -- tabela
@@ -57,7 +57,7 @@ Folha_Com_Sequencia AS (
             NULL,           -- tipo documento
             NULL            -- complemento
         ) AS nova_sequencia
-    FROM public_folha_pagamento f
+    FROM public_folha_pagamento
 )
  -- inserir registros na tabela Contaapagar
 INSERT INTO Contaapagar (
