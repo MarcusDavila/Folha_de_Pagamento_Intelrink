@@ -1,22 +1,6 @@
--- função do latromi para gerar sequencia
 
-select * from avacorpi.fnc_busca_sequence( 
-    2--usuario
-    ,1 --grupo
-    ,1 --empresa
-    ,1 --filial
-    ,1 --unidade
-    , NULL --tipo documento
-    ,NULL -- complemento
-);
---utilizado cte na logica da sequencia para não repetir a lógica
-WITH Sequencia_Atual AS (
-    SELECT COALESCE(MAX(Sequencia), 0) AS sequencia_atual
-    FROM Contaapagar 
-    WHERE grupo = 1 AND empresa = 1 AND filial = 1 AND unidade = 1
-),
 -- utilizado cte na do reduzido para não repetir a lógica
-Reduzido_Codigo AS (
+WITH Reduzido_Codigo AS (
      SELECT 
         public_folha_pagamento.cpf,
         public_folha_pagamento.tipo_pagamento,
@@ -59,13 +43,21 @@ Reduzido_Codigo AS (
         ON cadastro_vinculo.cpf = public_folha_pagamento.cpf
        AND cadastro_vinculo.vinculo = 3
 ),
--- utilizado este cte abaixo para gerar uma sequencia nova para cada linha, antes estava  gerando somente 1 numero de sequencia para todas as linhas.
+--utilizado este cte abaixo para gerar uma sequencia nova para cada linha, utilizando a função de controle de competitividade, antes estava  gerando somente 1 numero de sequencia para todas as linhas e sem a função de controle, travava lançamento de novos itens na tabela contaapagar.
 Folha_Com_Sequencia AS (
     SELECT 
-        public_folha_pagamento.*,
-        (sequencia_atual.sequencia_atual + ROW_NUMBER() OVER (ORDER BY public_folha_pagamento.cpf)) AS nova_sequencia
-    FROM public_folha_pagamento
-    CROSS JOIN Sequencia_Atual AS sequencia_atual
+        f.*,
+        avacorpi.fnc_buscar_sequence(
+            2,              -- usuario
+            'contaapagar',  -- tabela
+            1,              -- grupo
+            1,              -- empresa
+            1,              -- filial
+            1,              -- unidade
+            NULL,           -- tipo documento
+            NULL            -- complemento
+        ) AS nova_sequencia
+    FROM public_folha_pagamento f
 )
  -- inserir registros na tabela Contaapagar
 INSERT INTO Contaapagar (
