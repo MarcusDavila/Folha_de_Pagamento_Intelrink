@@ -1,4 +1,14 @@
+-- função do latromi para gerar sequencia
 
+select * from avacorpi.fnc_busca_sequence( 
+    2--usuario
+    ,1 --grupo
+    ,1 --empresa
+    ,1 --filial
+    ,1 --unidade
+    , NULL --tipo documento
+    ,NULL -- complemento
+);
 --utilizado cte na logica da sequencia para não repetir a lógica
 WITH Sequencia_Atual AS (
     SELECT COALESCE(MAX(Sequencia), 0) AS sequencia_atual
