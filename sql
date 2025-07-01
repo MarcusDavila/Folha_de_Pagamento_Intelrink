@@ -113,7 +113,7 @@ SELECT
         WHEN folha_com_sequencia.cpf = '11156023068' THEN '02824237000112'
         ELSE folha_com_sequencia.cpf
     END AS cnpjcpfcodigo,
-	reducao_codigo.codigo_reduzido,
+    Reduzido_Codigo.codigo_reduzido,
     NULL AS dtpagamento,
     folha_com_sequencia.data_insercao AS dtemissaotitulo,
     NULL AS dtcartorio,
@@ -204,8 +204,8 @@ SELECT
     NULL AS protocoloautenticacao,
     NULL AS cnpjcpfcodigosacadoravalista
 FROM folha_com_sequencia
-JOIN reducao_codigo 
-    ON folha_com_sequencia.cpf = reducao_codigo.cpf
+JOIN Reduzido_Codigo 
+    ON folha_com_sequencia.cpf = Reduzido_Codigo.cpf
 WHERE folha_com_sequencia.cpf IS NOT NULL 
   AND folha_com_sequencia.data_insercao IS NOT NULL 
   AND folha_com_sequencia.deposito IS NOT NULL;
@@ -262,7 +262,7 @@ SELECT
     public_folha_pagamento.data_insercaoAS dtvencimento, -- utilizado mesmo da importação, conforme confirmado com responsavel  RH (Lisi)
     public_folha_pagamento.data_insercao AS dtprevisaopagamento, -- utilizado mesmo da importação, conforme confirmado com responsavel  RH (Lisi)
     folha_com_sequencia.cpf AS cnpjcpfcodigo,
-    reduzido_codigo.codigo_reduzido, 
+    Reduzido_Codigo.codigo_reduzido, 
     folha_com_sequencia.deposito AS valortitulo,
     1 AS quantidadeparcela,
     NULL AS codigobarra,
@@ -307,8 +307,8 @@ SELECT
     NULL AS sequenciaacertoviagem,
     NULL AS empresaacertoviagem
 FROM folha_com_sequencia
-JOIN reducao_codigo 
-    ON folha_com_sequencia.cpf = reducao_codigo.cpf
+JOIN Reduzido_Codigo 
+    ON folha_com_sequencia.cpf = Reduzido_Codigo.cpf
 WHERE folha_com_sequencia.cpf IS NOT NULL 
   AND folha_com_sequencia.data_insercao IS NOT NULL 
   AND folha_com_sequencia.deposito IS NOT NULL;
