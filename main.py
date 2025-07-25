@@ -4,6 +4,9 @@ import re
 import psycopg2
 from psycopg2 import sql
 from datetime import datetime
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Padrões para identificar valores monetários e CPFs
 PATTERN_VALOR = re.compile(r'^\d{1,3}(?:\.\d{3})*,\d{2}$|^\d+,\d{2}$')
@@ -11,11 +14,11 @@ PATTERN_CPF = re.compile(r'\d{3}\.?\d{3}\.?\d{3}-?\d{2}')
 
 # CONFIGURAÇÕES DO BANCO - INSIRA SEUS DADOS AQUI!
 DB_CONFIG = {
-    'dbname': 'interlink',
-    'user': '**********',
-    'password': '*********',
-    'host': '138.2.245.181',
-    'port': '5432'
+    'dbname': os.getenv('DB_NAME'),
+    'user': os.getenv('DB_USER'),
+    'password': os.getenv('DB_PASSWORD'),
+    'host': os.getenv('DB_HOST'),
+    'port': os.getenv('DB_PORT'),
 }
 
 # Dicionário para mapear tipos de pagamento com base no nome do arquivo
