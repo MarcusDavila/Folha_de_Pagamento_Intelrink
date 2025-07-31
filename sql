@@ -7,27 +7,27 @@ WITH Reduzido_Codigo AS (
         CASE 
             WHEN public_folha_pagamento.tipo_pagamento = 1 THEN
                 CASE 
-                    WHEN cadastro_vinculo.cpf IS NOT NULL THEN 905
+                    WHEN cadastro_vinculo.cnpjcpfcodigo IS NOT NULL THEN 905
                     ELSE 283
                 END
             WHEN public_folha_pagamento.tipo_pagamento = 2 THEN
                 CASE 
-                    WHEN cadastro_vinculo.cpf IS NOT NULL THEN 904
+                    WHEN cadastro_vinculo.cnpjcpfcodigo IS NOT NULL THEN 904
                     ELSE 321
                 END
             WHEN public_folha_pagamento.tipo_pagamento = 3 THEN
                 CASE 
-                    WHEN cadastro_vinculo.cpf IS NOT NULL THEN 906
+                    WHEN cadastro_vinculo.cnpjcpfcodigo IS NOT NULL THEN 906
                     ELSE 1056
                 END
             WHEN public_folha_pagamento.tipo_pagamento = 4 THEN
                 CASE 
-                    WHEN cadastro_vinculo.cpf IS NOT NULL THEN 908
+                    WHEN cadastro_vinculo.cnpjcpfcodigo IS NOT NULL THEN 908
                     ELSE 494
                 END
             WHEN public_folha_pagamento.tipo_pagamento = 5 THEN
                 CASE 
-                    WHEN cadastro_vinculo.cpf IS NOT NULL THEN 956
+                    WHEN cadastro_vinculo.cnpjcpfcodigo IS NOT NULL THEN 956
                     ELSE 955
                 END
             WHEN public_folha_pagamento.tipo_pagamento = 6 THEN 957
@@ -40,7 +40,7 @@ WITH Reduzido_Codigo AS (
         END AS codigo_reduzido
     FROM public_folha_pagamento
     LEFT JOIN cadastro_vinculo 
-        ON cadastro_vinculo.cpf = public_folha_pagamento.cpf
+        ON cadastro_vinculo.cnpjcpfcodigo = public_folha_pagamento.cpf
        AND cadastro_vinculo.vinculo = 3
 ),
 --utilizado este cte abaixo para gerar uma sequencia nova para cada linha, utilizando a função de controle de competitividade, antes estava  gerando somente 1 numero de sequencia para todas as linhas e sem a função de controle, travava lançamento de novos itens na tabela contaapagar.
@@ -196,7 +196,7 @@ SELECT
     NULL AS digitolagreconectividadesocial,
     NULL AS valorreceitabrutaacumulada,
     0 AS percentualsobrereceitabrutaacumulada,
-    :{codigousuario} AS codigousuario, -- CODIGO DO USUARIO QUE APERTAR O BOTAO - VARIAVEL DO LATROMI
+    {?SESSION.CodigoUsuario} AS codigousuario, -- CODIGO DO USUARIO QUE APERTAR O BOTAO - VARIAVEL DO LATROMI
     0 AS valorrecolhimento,
     0 AS outrosvalores,
     0 AS acrescimos,
@@ -259,10 +259,10 @@ SELECT
     1 AS numeroparcela,
     folha_com_sequencia.data_insercao AS dtinc,
     NULL AS dtalt,
-    public_folha_pagamento.data_insercaoAS dtvencimento, -- utilizado mesmo da importação, conforme confirmado com responsavel  RH (Lisi)
-    public_folha_pagamento.data_insercao AS dtprevisaopagamento, -- utilizado mesmo da importação, conforme confirmado com responsavel  RH (Lisi)
+    folha_com_sequencia.data_insercao AS dtvencimento, -- utilizado mesmo da importação, conforme confirmado com responsavel  RH (Lisi)
+    folha_com_sequencia.data_insercao AS dtprevisaopagamento, -- utilizado mesmo da importação, conforme confirmado com responsavel  RH (Lisi)
     folha_com_sequencia.cpf AS cnpjcpfcodigo,
-    Reduzido_Codigo.codigo_reduzido, 
+    Reduzido_Codigo.codigo_reduzido as reduzido, 
     folha_com_sequencia.deposito AS valortitulo,
     1 AS quantidadeparcela,
     NULL AS codigobarra,

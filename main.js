@@ -1,5 +1,3 @@
-// Requisitos: Instale com npm install dotenv pg exceljs fs path
-
 import fs from 'fs';
 import path from 'path';
 import * as dotenv from 'dotenv';
