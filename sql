@@ -1,64 +1,64 @@
+CREATE TEMP TABLE Reduzido_Codigo AS
+SELECT 
+    public_folha_pagamento.cpf,
+    public_folha_pagamento.tipo_pagamento,
+    CASE 
+        WHEN public_folha_pagamento.tipo_pagamento = '1' THEN
+            CASE 
+                WHEN cadastro_vinculo.cnpjcpfcodigo IS NOT NULL THEN 905
+                ELSE 283
+            END
+        WHEN public_folha_pagamento.tipo_pagamento = '2' THEN
+            CASE 
+                WHEN cadastro_vinculo.cnpjcpfcodigo IS NOT NULL THEN 904
+                ELSE 321
+            END
+        WHEN public_folha_pagamento.tipo_pagamento = '3' THEN
+            CASE 
+                WHEN cadastro_vinculo.cnpjcpfcodigo IS NOT NULL THEN 906
+                ELSE 1056
+            END
+        WHEN public_folha_pagamento.tipo_pagamento = '4' THEN
+            CASE 
+                WHEN cadastro_vinculo.cnpjcpfcodigo IS NOT NULL THEN 908
+                ELSE 494
+            END
+        WHEN public_folha_pagamento.tipo_pagamento = '5' THEN
+            CASE 
+                WHEN cadastro_vinculo.cnpjcpfcodigo IS NOT NULL THEN 956
+                ELSE 955
+            END
+        WHEN public_folha_pagamento.tipo_pagamento = '6' THEN 957
+        WHEN public_folha_pagamento.tipo_pagamento = '7' THEN
+            CASE 
+                WHEN public_folha_pagamento.cpf IN ('80502237015', '02824237000112', '11156023068') THEN 285
+                ELSE 905
+            END
+        ELSE NULL 
+    END AS codigo_reduzido
+FROM public_folha_pagamento
+LEFT JOIN cadastro_vinculo 
+    ON cadastro_vinculo.cnpjcpfcodigo = public_folha_pagamento.cpf
+   AND cadastro_vinculo.vinculo = '3';
 
--- utilizado cte na do reduzido para não repetir a lógica
-WITH Reduzido_Codigo AS (
-     SELECT 
-        public_folha_pagamento.cpf,
-        public_folha_pagamento.tipo_pagamento,
-        CASE 
-            WHEN public_folha_pagamento.tipo_pagamento = 1 THEN
-                CASE 
-                    WHEN cadastro_vinculo.cnpjcpfcodigo IS NOT NULL THEN 905
-                    ELSE 283
-                END
-            WHEN public_folha_pagamento.tipo_pagamento = 2 THEN
-                CASE 
-                    WHEN cadastro_vinculo.cnpjcpfcodigo IS NOT NULL THEN 904
-                    ELSE 321
-                END
-            WHEN public_folha_pagamento.tipo_pagamento = 3 THEN
-                CASE 
-                    WHEN cadastro_vinculo.cnpjcpfcodigo IS NOT NULL THEN 906
-                    ELSE 1056
-                END
-            WHEN public_folha_pagamento.tipo_pagamento = 4 THEN
-                CASE 
-                    WHEN cadastro_vinculo.cnpjcpfcodigo IS NOT NULL THEN 908
-                    ELSE 494
-                END
-            WHEN public_folha_pagamento.tipo_pagamento = 5 THEN
-                CASE 
-                    WHEN cadastro_vinculo.cnpjcpfcodigo IS NOT NULL THEN 956
-                    ELSE 955
-                END
-            WHEN public_folha_pagamento.tipo_pagamento = 6 THEN 957
-            WHEN public_folha_pagamento.tipo_pagamento = 7 THEN
-                CASE 
-                    WHEN public_folha_pagamento.cpf IN ('80502237015', '02824237000112', '11156023068') THEN 285
-                    ELSE 905
-                END
-            ELSE NULL 
-        END AS codigo_reduzido
-    FROM public_folha_pagamento
-    LEFT JOIN cadastro_vinculo 
-        ON cadastro_vinculo.cnpjcpfcodigo = public_folha_pagamento.cpf
-       AND cadastro_vinculo.vinculo = 3
-),
---utilizado este cte abaixo para gerar uma sequencia nova para cada linha, utilizando a função de controle de competitividade, antes estava  gerando somente 1 numero de sequencia para todas as linhas e sem a função de controle, travava lançamento de novos itens na tabela contaapagar.
-Folha_Com_Sequencia AS (
-    SELECT 
-        public_folha_pagamento.*,
-        avacorpi.fnc_buscar_sequence(
-            2,              -- usuario
-            'contaapagar',  -- tabela
-            1,              -- grupo
-            1,              -- empresa
-            1,              -- filial
-            1,              -- unidade
-            NULL,           -- tipo documento
-            NULL            -- complemento
-        ) AS nova_sequencia
-    FROM public_folha_pagamento
-)
+
+-- Tabela Temporária 2: Gerando a sequência para cada linha da folha
+-- (Foi corrigido um erro de sintaxe, adicionando a vírgula que faltava)
+CREATE TEMP TABLE folha_com_sequencia AS
+SELECT  
+    public_folha_pagamento.*,
+    seq.sequencia::integer as nova_sequencia
+from public_folha_pagamento
+CROSS JOIN LATERAL avacorpi.fnc_buscar_sequence(
+    2,              -- usuario
+    'contaapagar',  -- tabela
+    1,              -- grupo
+    1,              -- empresa
+    1,              -- filial
+    1,              -- unidade
+    NULL,           -- tipo documento
+    NULL            -- complemento
+) AS seq;
  -- inserir registros na tabela Contaapagar
 INSERT INTO Contaapagar (
     numerotitulo, numeroparcela, valorpendente, valorpago, valortitulo, 
@@ -90,13 +90,13 @@ INSERT INTO Contaapagar (
 )
 SELECT 
     CASE 
-        WHEN folha_com_sequencia.tipo_pagamento = 1 THEN 'FOLHA DE PGTO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
-        WHEN folha_com_sequencia.tipo_pagamento = 2 THEN 'FOLHA DE ADTO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
-        WHEN folha_com_sequencia.tipo_pagamento = 3 THEN 'FÉRIAS'
-        WHEN folha_com_sequencia.tipo_pagamento = 4 THEN 'ADTO 13º SALÁRIO'
-        WHEN folha_com_sequencia.tipo_pagamento = 5 THEN 'RESCISÃO'
-        WHEN folha_com_sequencia.tipo_pagamento = 6 THEN 'PENSÃO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
-        WHEN folha_com_sequencia.tipo_pagamento = 7 THEN 
+        WHEN folha_com_sequencia.tipo_pagamento = '1' THEN 'FOLHA DE PGTO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
+        WHEN folha_com_sequencia.tipo_pagamento = '2' THEN 'FOLHA DE ADTO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
+        WHEN folha_com_sequencia.tipo_pagamento = '3' THEN 'FÉRIAS'
+        WHEN folha_com_sequencia.tipo_pagamento = '4' THEN 'ADTO 13º SALÁRIO'
+        WHEN folha_com_sequencia.tipo_pagamento = '5' THEN 'RESCISÃO'
+        WHEN folha_com_sequencia.tipo_pagamento = '6' THEN 'PENSÃO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
+        WHEN folha_com_sequencia.tipo_pagamento = '7' THEN 
             CASE 
                 WHEN folha_com_sequencia.cpf IN ('80502237015', '02824237000112', '11156023068') THEN 'PRO LABORE ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
                 ELSE 'FOLHA DE PGTO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
@@ -104,11 +104,11 @@ SELECT
         ELSE NULL
     END AS numerotitulo,
     1 AS numeroparcela,
-    folha_com_sequencia.deposito AS valorpendente,
+    REPLACE(REPLACE(folha_com_sequencia.deposito, '.', ''), ',', '.')::numeric AS valorpendente, -- CORREÇÃO ATUALIZADA
     0 AS valorpago,
-    folha_com_sequencia.deposito AS valortitulo,
-    folha_com_sequencia.data_insercao AS dtprevisaopagamento, -- utilizado mesmo da importação, conforme confirmado com responsavel  RH (Lisi)
-    folha_com_sequencia.data_insercao AS dtvencimento, -- utilizado mesmo da importação, conforme confirmado com responsavel  RH (Lisi)
+    REPLACE(REPLACE(folha_com_sequencia.deposito, '.', ''), ',', '.')::numeric AS valortitulo, -- CORREÇÃO ATUALIZADA
+    folha_com_sequencia.data_insercao AS dtprevisaopagamento,
+    folha_com_sequencia.data_insercao AS dtvencimento,
     CASE 
         WHEN folha_com_sequencia.cpf = '11156023068' THEN '02824237000112'
         ELSE folha_com_sequencia.cpf
@@ -123,9 +123,9 @@ SELECT
     1 AS empresa,
     1 AS filial,
     1 AS unidade,
-    3 AS composicao,
+    1 AS composicao,
     1 AS moeda,
-    folha_com_sequencia.deposito AS valortitulomoeda,
+    REPLACE(REPLACE(folha_com_sequencia.deposito, '.', ''), ',', '.')::numeric AS valortitulomoeda, -- CORREÇÃO ATUALIZADA
     0 AS valormulta,
     0 AS valorjuro,
     0 AS valordesconto,
@@ -177,7 +177,7 @@ SELECT
     0 AS valorjuromoeda,
     0 AS valordescontomoeda,
     0 AS valorpagomoeda,
-    folha_com_sequencia.deposito AS valorpendentemoeda,
+    REPLACE(REPLACE(folha_com_sequencia.deposito, '.', ''), ',', '.')::numeric AS valorpendentemoeda, -- CORREÇÃO ATUALIZADA
     2 AS geracreditopiscofins,
     NULL AS naturezabasecalculocredito,
     NULL AS indicadororigemcredito,
@@ -189,14 +189,14 @@ SELECT
     0 AS valorbasecalculocofins,
     0 AS percaliquotacofins,
     0 AS valorcofins,
-    -1 AS codigoformalancamentointerna,
+    1 AS codigoformalancamentointerna,
     NULL AS codigodareceitadotributo,
     NULL AS identificadorfgts,
     NULL AS lacreconectividadesocial,
     NULL AS digitolagreconectividadesocial,
     NULL AS valorreceitabrutaacumulada,
     0 AS percentualsobrereceitabrutaacumulada,
-    {?SESSION.CodigoUsuario} AS codigousuario, -- CODIGO DO USUARIO QUE APERTAR O BOTAO - VARIAVEL DO LATROMI
+    {?SESSION.IdUsuario} AS codigousuario,
     0 AS valorrecolhimento,
     0 AS outrosvalores,
     0 AS acrescimos,
@@ -210,7 +210,7 @@ WHERE folha_com_sequencia.cpf IS NOT NULL
   AND folha_com_sequencia.data_insercao IS NOT NULL 
   AND folha_com_sequencia.deposito IS NOT NULL;
 
-  -- Inserir registros na tabela Contaapagar_Composicao
+-- Inserir registros na tabela Contaapagar_Composicao
 INSERT INTO CONTAAPAGAR_COMPOSICAO (
     grupo, empresa, filial, unidade, sequencia, sequenciacomposicao, 
     tipodocumentoorigem, grupodocumentoorigem, empresadocumentoorigem, 
@@ -259,11 +259,11 @@ SELECT
     1 AS numeroparcela,
     folha_com_sequencia.data_insercao AS dtinc,
     NULL AS dtalt,
-    folha_com_sequencia.data_insercao AS dtvencimento, -- utilizado mesmo da importação, conforme confirmado com responsavel  RH (Lisi)
-    folha_com_sequencia.data_insercao AS dtprevisaopagamento, -- utilizado mesmo da importação, conforme confirmado com responsavel  RH (Lisi)
+    folha_com_sequencia.data_insercao AS dtvencimento,
+    folha_com_sequencia.data_insercao AS dtprevisaopagamento,
     folha_com_sequencia.cpf AS cnpjcpfcodigo,
     Reduzido_Codigo.codigo_reduzido as reduzido, 
-    folha_com_sequencia.deposito AS valortitulo,
+    REPLACE(REPLACE(folha_com_sequencia.deposito, '.', ''), ',', '.')::numeric AS valortitulo, -- CORREÇÃO ATUALIZADA
     1 AS quantidadeparcela,
     NULL AS codigobarra,
     NULL AS linhadigitavel,
@@ -313,7 +313,5 @@ WHERE folha_com_sequencia.cpf IS NOT NULL
   AND folha_com_sequencia.data_insercao IS NOT NULL 
   AND folha_com_sequencia.deposito IS NOT NULL;
 
-  --codigo para deletar todos os registros da tabela folha_pagamento apos a inserção na tabela Contaapagar e Contaapagar_Composicao
+--codigo para deletar todos os registros da tabela folha_pagamento apos a inserção na tabela Contaapagar e Contaapagar_Composicao
 DELETE FROM public_folha_pagamento;
-
-

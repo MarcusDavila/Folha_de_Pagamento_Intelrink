@@ -1,0 +1,252 @@
+-- ETAPA 0: LIMPEZA
+-- Garante que tabelas temporárias de execuções anteriores na mesma sessão sejam removidas.
+DROP TABLE IF EXISTS Reduzido_Codigo;
+DROP TABLE IF EXISTS folha_com_sequencia;
+
+
+-- ETAPA 1: Preparação dos dados (Sem alterações)
+-- Cria uma tabela temporária para os códigos reduzidos
+CREATE TEMP TABLE Reduzido_Codigo AS
+SELECT 
+    public_folha_pagamento.cpf,
+    public_folha_pagamento.tipo_pagamento,
+    CASE 
+        WHEN public_folha_pagamento.tipo_pagamento = '1' THEN CASE WHEN cadastro_vinculo.cnpjcpfcodigo IS NOT NULL THEN 905 ELSE 283 END
+        WHEN public_folha_pagamento.tipo_pagamento = '2' THEN CASE WHEN cadastro_vinculo.cnpjcpfcodigo IS NOT NULL THEN 904 ELSE 321 END
+        WHEN public_folha_pagamento.tipo_pagamento = '3' THEN CASE WHEN cadastro_vinculo.cnpjcpfcodigo IS NOT NULL THEN 906 ELSE 1056 END
+        WHEN public_folha_pagamento.tipo_pagamento = '4' THEN CASE WHEN cadastro_vinculo.cnpjcpfcodigo IS NOT NULL THEN 908 ELSE 494 END
+        WHEN public_folha_pagamento.tipo_pagamento = '5' THEN CASE WHEN cadastro_vinculo.cnpjcpfcodigo IS NOT NULL THEN 956 ELSE 955 END
+        WHEN public_folha_pagamento.tipo_pagamento = '6' THEN 957
+        WHEN public_folha_pagamento.tipo_pagamento = '7' THEN CASE WHEN public_folha_pagamento.cpf IN ('80502237015', '02824237000112', '11156023068') THEN 285 ELSE 905 END
+        ELSE NULL 
+    END AS codigo_reduzido
+FROM public_folha_pagamento
+LEFT JOIN cadastro_vinculo 
+    ON cadastro_vinculo.cnpjcpfcodigo = public_folha_pagamento.cpf
+   AND cadastro_vinculo.vinculo = '3';
+
+-- Cria a tabela temporária com os dados da folha e a nova sequência para cada registro
+CREATE TEMP TABLE folha_com_sequencia AS
+SELECT  
+    public_folha_pagamento.*,
+    seq.sequencia::integer as nova_sequencia
+from public_folha_pagamento
+CROSS JOIN LATERAL avacorpi.fnc_buscar_sequence(
+    2, 'contaapagar', 1, 1, 1, 1, NULL, NULL
+) AS seq;
+
+
+-- ETAPA 2: Inserir os dados na tabela principal "Contaapagar" com a alteração no campo SEMAFORO
+INSERT INTO Contaapagar (
+    numerotitulo, numeroparcela, valorpendente, valorpago, valortitulo, 
+    dtprevisaopagamento, dtvencimento, cnpjcpfcodigo, reduzido, dtpagamento, 
+    dtemissaotitulo, dtcartorio, dtprotesto, Sequencia, grupo, empresa, filial, 
+    unidade, composicao, moeda, valortitulomoeda, valormulta, valorjuro, 
+    valordesconto, valordespesacartorio, valordespesaprotesto, observacao, 
+    grupodocumentoorigem, empresadocumentoorigem, filialdocumentoorigem, 
+    unidadedocumentoorigem, cnpjcpfcodigodocumentoorigem, 
+    diferenciadornumerodocumentoorigem, seriedocumentoorigem, 
+    numerosequenciadocumentoorigem, dtemissaodocumentoorigem, dtinc, 
+    codigobarra, linhadigitavel, quantidadeparcela, dtalt, semaforo, 
+    tipopagamento, tipodocumentoorigem, posicaocnab, nroremessa, apropriacao, 
+    bancocredor, agenciacredor, contacredor, cnpjcpfcodigocredor, vinculocredor, 
+    formalancamento, tipotitulo, cnpjcpfcodigoadiantamento, proprietario, veiculo, 
+    reduzidodebito, formapagamento, moedapagamentooutramoeda, 
+    dtcambiopagamentooutramoeda, valorcambiopagamentooutramoeda, 
+    valortitulomoedapagamentooutramoeda, informarmanualmentecontrato, 
+    codigocobranca, tipo, valordespesacartoriomoeda, valormultamoeda, 
+    valordespesaprotestomoeda, valorjuromoeda, valordescontomoeda, valorpagomoeda, 
+    valorpendentemoeda, geracreditopiscofins, naturezabasecalculocredito, 
+    indicadororigemcredito, cstpis, valorbasecalculopis, percaliquotapis, 
+    valorpis, cstcofins, valorbasecalculocofins, percaliquotacofins, valorcofins, 
+    codigoformalancamentointerna, codigodareceitadotributo, identificadorfgts, 
+    lacreconectividadesocial, digitolagreconectividadesocial, 
+    valorreceitabrutaacumulada, percentualsobrereceitabrutaacumulada, 
+    codigousuario, valorrecolhimento, outrosvalores, acrescimos, numeroautenticacao, 
+    protocoloautenticacao, cnpjcpfcodigosacadoravalista
+)
+SELECT 
+    CASE 
+        WHEN fcs.tipo_pagamento = '1' THEN 'FOLHA DE PGTO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
+        WHEN fcs.tipo_pagamento = '2' THEN 'FOLHA DE ADTO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
+        WHEN fcs.tipo_pagamento = '3' THEN 'FÉRIAS'
+        WHEN fcs.tipo_pagamento = '4' THEN 'ADTO 13º SALÁRIO'
+        WHEN fcs.tipo_pagamento = '5' THEN 'RESCISÃO'
+        WHEN fcs.tipo_pagamento = '6' THEN 'PENSÃO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
+        WHEN fcs.tipo_pagamento = '7' THEN CASE WHEN fcs.cpf IN ('80502237015', '02824237000112', '11156023068') THEN 'PRO LABORE ' || TO_CHAR(CURRENT_DATE, 'MMYYYY') ELSE 'FOLHA DE PGTO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY') END
+        ELSE NULL
+    END AS numerotitulo,
+    1 AS numeroparcela,
+    REPLACE(REPLACE(fcs.deposito, '.', ''), ',', '.')::numeric AS valorpendente,
+    0 AS valorpago,
+    REPLACE(REPLACE(fcs.deposito, '.', ''), ',', '.')::numeric AS valortitulo,
+    fcs.data_insercao AS dtprevisaopagamento,
+    fcs.data_insercao AS dtvencimento,
+    CASE WHEN fcs.cpf = '11156023068' THEN '02824237000112' ELSE fcs.cpf END AS cnpjcpfcodigo,
+    rc.codigo_reduzido AS reduzido,
+    NULL AS dtpagamento,
+    fcs.data_insercao AS dtemissaotitulo,
+    NULL AS dtcartorio,
+    NULL AS dtprotesto,
+    fcs.nova_sequencia AS Sequencia,
+    1 AS grupo,
+    1 AS empresa,
+    1 AS filial,
+    1 AS unidade,
+    1 AS composicao,
+    1 AS moeda,
+    REPLACE(REPLACE(fcs.deposito, '.', ''), ',', '.')::numeric AS valortitulomoeda,
+    0 AS valormulta,
+    0 AS valorjuro,
+    0 AS valordesconto,
+    0 AS valordespesacartorio,
+    0 AS valordespesaprotesto,
+    NULL AS observacao,
+    NULL AS grupodocumentoorigem,
+    NULL AS empresadocumentoorigem,
+    NULL AS filialdocumentoorigem,
+    NULL AS unidadedocumentoorigem,
+    NULL AS cnpjcpfcodigodocumentoorigem,
+    NULL AS diferenciadornumerodocumentoorigem,
+    NULL AS seriedocumentoorigem,
+    NULL AS numerosequenciadocumentoorigem,
+    NULL AS dtemissaodocumentoorigem,
+    fcs.data_insercao AS dtinc,
+    NULL AS codigobarra,
+    NULL AS linhadigitavel,
+    1 AS quantidadeparcela,
+    fcs.data_insercao AS dtalt,
+    1 AS semaforo,  -- <<< ALTERAÇÃO PRINCIPAL AQUI: Trocado de 0 para 1
+    NULL AS tipopagamento,
+    0 AS tipodocumentoorigem,
+    2 AS posicaocnab,
+    NULL AS nroremessa,
+    2 AS apropriacao,
+    NULL AS bancocredor,
+    NULL AS agenciacredor,
+    NULL AS contacredor,
+    NULL AS cnpjcpfcodigocredor,
+    NULL AS vinculocredor,
+    NULL AS formalancamento,
+    4 AS tipotitulo,
+    NULL AS cnpjcpfcodigoadiantamento,
+    NULL AS proprietario,
+    NULL AS veiculo,
+    NULL AS reduzidodebito,
+    2 AS formapagamento,
+    NULL AS moedapagamentooutramoeda,
+    NULL AS dtcambiopagamentooutramoeda,
+    0 AS valorcambiopagamentooutramoeda,
+    0 AS valortitulomoedapagamentooutramoeda,
+    2 AS informarmanualmentecontrato,
+    NULL AS codigocobranca,
+    4 AS tipo,
+    0 AS valordespesacartoriomoeda,
+    0 AS valormultamoeda,
+    0 AS valordespesaprotestomoeda,
+    0 AS valorjuromoeda,
+    0 AS valordescontomoeda,
+    0 AS valorpagomoeda,
+    REPLACE(REPLACE(fcs.deposito, '.', ''), ',', '.')::numeric AS valorpendentemoeda,
+    2 AS geracreditopiscofins,
+    NULL AS naturezabasecalculocredito,
+    NULL AS indicadororigemcredito,
+    NULL AS cstpis,
+    0 AS valorbasecalculopis,
+    0 AS percaliquotapis,
+    0 AS valorpis,
+    NULL AS cstcofins,
+    0 AS valorbasecalculocofins,
+    0 AS percaliquotacofins,
+    0 AS valorcofins,
+    1 AS codigoformalancamentointerna,
+    NULL AS codigodareceitadotributo,
+    NULL AS identificadorfgts,
+    NULL AS lacreconectividadesocial,
+    NULL AS digitolagreconectividadesocial,
+    NULL AS valorreceitabrutaacumulada,
+    0 AS percentualsobrereceitabrutaacumulada,
+    55 AS codigousuario,
+    0 AS valorrecolhimento,
+    0 AS outrosvalores,
+    0 AS acrescimos,
+    NULL AS numeroautenticacao,
+    NULL AS protocoloautenticacao,
+    NULL AS cnpjcpfcodigosacadoravalista
+FROM folha_com_sequencia fcs
+JOIN Reduzido_Codigo rc ON fcs.cpf = rc.cpf
+WHERE fcs.cpf IS NOT NULL 
+  AND fcs.data_insercao IS NOT NULL 
+  AND fcs.deposito IS NOT NULL;
+
+
+-- ETAPA 3: ATUALIZAR os registros na tabela filha "Contaapagar_Composicao" (Sem alterações)
+UPDATE CONTAAPAGAR_COMPOSICAO cc SET
+    tipodocumentoorigem = 1,
+    grupodocumentoorigem = 1,
+    empresadocumentoorigem = 1,
+    filialdocumentoorigem = 1,
+    unidadedocumentoorigem = 1,
+    cnpjcpfcodigodocumentoorigem = CASE WHEN fcs.cpf = '11156023068' THEN '02824237000112' ELSE fcs.cpf END,
+    dtemissaodocumentoorigem = fcs.data_insercao,
+    diferenciadornumerodocumentoorigem = NULL,
+    seriedocumentoorigem = NULL,
+    numerosequenciadocumentoorigem = nova_sequencia,
+    numeroparcela = 1,
+    dtinc = fcs.data_insercao,
+    dtalt = NULL,
+    dtvencimento = fcs.data_insercao,
+    dtprevisaopagamento = fcs.data_insercao,
+    cnpjcpfcodigo = fcs.cpf,
+    reduzido = rc.codigo_reduzido,
+    valortitulo = REPLACE(REPLACE(fcs.deposito, '.', ''), ',', '.')::numeric,
+    quantidadeparcela = 1,
+    codigobarra = NULL,
+    linhadigitavel = NULL,
+    usuariomark = NULL,
+    sequenciaafretamentocalculo = NULL,
+    valorretencaopagamentopiscofinscsll = 0,
+    tipotitulo = 4,
+    formapagamento = 1,
+    tipo = 2,
+    tipodocumento = NULL,
+    historico = NULL,
+    centrocusto = NULL,
+    historicodescricao = NULL,
+    avacorpi = 2,
+    origem = NULL,
+    tipooorigem = NULL,
+    sequencianova = NULL,
+    dtliberacaopagamento = NULL,
+    tipoprogramacaoembarque = NULL,
+    dtliberacaovalidacao = NULL,
+    usuarioliberacaovalidacao = NULL,
+    valornegociadodiferenca = NULL,
+    adiantamentoliberadoautomatico = 1,
+    usuarioliberacaooperacional = NULL,
+    usuarioliberacaoadiantamento = NULL,
+    dtliberacaoadiantamento = NULL,
+    dtliberacaooperacional = NULL,
+    usuariomarkliberacaosaldo = NULL,
+    idparcela = NULL,
+    saldodevedor = NULL,
+    valorsaldoreparcelamento = NULL,
+    veiculo = NULL,
+    proprietario = NULL,
+    valortitulopendente = 0,
+    valortituloutilizado = 0,
+    tipodocumentoacertoviagem = NULL,
+    filialacertoviagem = NULL,
+    unidadeacertoviagem = NULL,
+    diferenciadornumeroacertoviagem = NULL,
+    numeroacertoviagem = NULL,
+    sequenciaacertoviagem = NULL,
+    empresaacertoviagem = NULL
+FROM folha_com_sequencia fcs
+JOIN Reduzido_Codigo rc ON fcs.cpf = rc.cpf
+WHERE cc.sequencia = fcs.nova_sequencia
+  
+
+
+-- ETAPA 4: Limpar a tabela de origem após a importação (Sem alterações)
+DELETE FROM public_folha_pagamento;
