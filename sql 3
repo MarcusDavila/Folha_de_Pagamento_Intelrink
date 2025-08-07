@@ -1,24 +1,14 @@
-/*****************************************************************************************
- * SCRIPT DE INTEGRAÇÃO DE FOLHA DE PAGAMENTO PARA CONTAS A PAGAR
- * 
- * Objetivo: Importar dados da tabela 'public_folha_pagamento' para o módulo financeiro,
- * criando os títulos em 'Contaapagar' e seus respectivos registros nas tabelas filhas
- * de composição e contabilização, seguindo a lógica de negócio do sistema.
- *
- * Versão: 2.0 - User-Friendly
- *****************************************************************************************/
 
 -- ETAPA 0: LIMPEZA DE TABELAS TEMPORÁRIAS
--- Garante um ambiente limpo, removendo tabelas de execuções anteriores na mesma sessão.
-DROP TABLE IF EXISTS Reduzido_Codigo;
-DROP TABLE IF EXISTS folha_com_sequencia;
+
+DROP TABLE IF EXISTS pub_Reduzido_Codigo;
+DROP TABLE IF EXISTS pub_folha_com_sequencia;
 
 
 -- ETAPA 1: PREPARAÇÃO DOS DADOS
--- Nenhuma alteração na lógica, apenas preparação das informações em tabelas temporárias.
 
 -- Tabela 1: Calcula o 'codigo_reduzido' correto para cada CPF/CNPJ.
-CREATE TEMP TABLE Reduzido_Codigo AS
+CREATE TEMP TABLE pub_Reduzido_Codigo AS
 SELECT 
     pf.cpf,
     pf.tipo_pagamento,
@@ -38,18 +28,37 @@ LEFT JOIN cadastro_vinculo cv
    AND cv.vinculo = '3';
 
 -- Tabela 2: Busca uma nova sequência única para cada registro e junta com os dados da folha.
-CREATE TEMP TABLE folha_com_sequencia AS
-SELECT  
-    pf.*, -- ATENÇÃO: Verifique se sua tabela 'public_folha_pagamento' tem uma coluna com o NOME do favorecido. Chamei de 'nome' mais abaixo.
-    seq.sequencia::integer as nova_sequencia
-from public_folha_pagamento pf
-CROSS JOIN LATERAL avacorpi.fnc_buscar_sequence(
-    2, 'contaapagar', 1, 1, 1, 1, NULL, NULL
-) AS seq;
+CREATE TEMP TABLE pub_folha_com_sequencia (
+    LIKE public_folha_pagamento, -- Copia todas as colunas de public_folha_pagamento
+    nova_sequencia INTEGER         -- Adiciona a nossa nova coluna
+);
+
+-- Agora, usamos um bloco procedural para iterar e popular a tabela.
+DO $$
+DECLARE
+    -- A MUDANÇA CRUCIAL ESTÁ AQUI: Declaramos pf_row com o tipo da tabela.
+    pf_row public_folha_pagamento%ROWTYPE;
+    
+    -- 'v_nova_sequencia' irá armazenar o resultado da função do ERP a cada iteração
+    v_nova_sequencia INTEGER;
+BEGIN
+    -- Este LOOP percorre cada registro da tabela original
+    FOR pf_row IN SELECT * FROM public_folha_pagamento
+    LOOP
+        -- 1. Para cada registro, chama a função do ERP e armazena o novo número
+        SELECT sequencia INTO v_nova_sequencia
+        FROM avacorpi.fnc_buscar_sequence(2, 'contaapagar', 1, 1, 1, 1, NULL, NULL);
+
+        -- 2. Agora que pf_row tem um tipo registrado, o INSERT com VALUES funciona.
+        INSERT INTO pub_folha_com_sequencia VALUES (pf_row.*, v_nova_sequencia);
+
+    END LOOP;
+END;
+$$;
 
 
 -- ETAPA 2: INSERÇÃO NA TABELA PRINCIPAL 'Contaapagar'
--- Insere o título principal com o semáforo inicial em '0' (Pendente) para depois ser alterado via função.
+
 INSERT INTO Contaapagar (
     grupo, empresa, filial, unidade, sequencia, numerotitulo, numeroparcela, 
     valortitulo, valorpendente, valorpago, dtemissaotitulo, dtvencimento, dtprevisaopagamento, 
@@ -99,22 +108,22 @@ SELECT
     fcs.data_insercao AS dtprevisaopagamento,
     CASE WHEN fcs.cpf = '11156023068' THEN '02824237000112' ELSE fcs.cpf END AS cnpjcpfcodigo,
     rc.codigo_reduzido AS reduzido,
-    3 AS composicao,  -- Conforme log da inserção manual, o sistema usa '3' (Provavelmente Composição por Rateio).
+    3 AS composicao,  
     1 AS moeda,
     REPLACE(REPLACE(fcs.deposito, '.', ''), ',', '.')::numeric AS valortitulomoeda,
     fcs.data_insercao AS dtinc,
     fcs.data_insercao AS dtalt,
-    0 AS semaforo,  -- IMPORTANTE: Inserido como '0' (Pendente/Vermelho). Será alterado para '1' pela função na ETAPA 4.
-    2 AS apropriacao, -- '2' para Apropriação Direta.
-    4 AS tipotitulo, -- '4' para Outros.
-    2 AS formapagamento, -- '2' para Crédito em Conta.
-    4 AS tipo, -- '4' para Normal.
-    2 AS posicaocnab, -- '2' para Título não enviado em remessa.
+    0 AS semaforo,  
+    2 AS apropriacao, 
+    4 AS tipotitulo, 
+    2 AS formapagamento,
+    4 AS tipo, 
+    2 AS posicaocnab, 
     2 AS informarmanualmentecontrato,
     2 AS geracreditopiscofins,
     REPLACE(REPLACE(fcs.deposito, '.', ''), ',', '.')::numeric AS valorpendentemoeda,
     -1 AS codigoformalancamentointerna,
-    55 AS codigousuario, -- Código do usuário robô/integração.
+    {?SESSION.CodigoUsuario} AS codigousuario, 
     -- Demais colunas preenchidas com valores nulos ou padrão para um título simples.
     NULL AS dtpagamento, NULL AS dtcartorio, NULL AS dtprotesto, 0 AS valormulta, 0 AS valorjuro, 0 AS valordesconto, 
     0 AS valordespesacartorio, 0 AS valordespesaprotesto, NULL AS observacao, NULL AS grupodocumentoorigem, NULL AS empresadocumentoorigem, 
@@ -132,15 +141,15 @@ SELECT
     NULL AS lacreconectividadesocial, NULL AS digitolagreconectividadesocial, NULL AS valorreceitabrutaacumulada, 
     0 AS percentualsobrereceitabrutaacumulada, 0 AS valorrecolhimento, 0 AS outrosvalores, 0 AS acrescimos, 
     NULL AS numeroautenticacao, NULL AS protocoloautenticacao, NULL AS cnpjcpfcodigosacadoravalista
-FROM folha_com_sequencia fcs
-JOIN Reduzido_Codigo rc ON fcs.cpf = rc.cpf
+FROM pub_folha_com_sequencia fcs
+JOIN pub_Reduzido_Codigo rc ON fcs.cpf = rc.cpf
 WHERE fcs.cpf IS NOT NULL 
   AND fcs.data_insercao IS NOT NULL 
   AND fcs.deposito IS NOT NULL;
 
 
 -- ETAPA 3: INSERÇÃO NAS TABELAS FILHAS (COMPOSIÇÃO E CONTABILIZAÇÃO)
--- Esta etapa é crucial para que o título seja considerado válido pelo sistema.
+
 
 -- ETAPA 3.1: Inserir em 'Contaapagar_composicao'
 INSERT INTO Contaapagar_composicao (
@@ -158,7 +167,7 @@ SELECT
     fcs.nova_sequencia AS sequencia,
     1 AS sequenciacomposicao,
     nova_sequencia AS numerosequenciadocumentoorigem,
-    2 AS tipodocumentoorigem, -- Conforme log, o tipo de documento na composição é '2'
+    2 AS tipodocumentoorigem, 
     1 AS grupodocumentoorigem,
     1 AS empresadocumentoorigem,
     1 AS filialdocumentoorigem,
@@ -174,8 +183,8 @@ SELECT
     1 AS numeroparcela,
     1 AS quantidadeparcela,
     4 AS tipotitulo
-FROM folha_com_sequencia fcs
-JOIN Reduzido_Codigo rc ON fcs.cpf = rc.cpf;
+FROM pub_folha_com_sequencia fcs
+JOIN pub_Reduzido_Codigo rc ON fcs.cpf = rc.cpf;
 
 -- ETAPA 3.2: Inserir em 'Contaapagar_contabilizacao'
 INSERT INTO Contaapagar_contabilizacao (
@@ -193,9 +202,8 @@ SELECT
     rc.codigo_reduzido AS reduzido,
     REPLACE(REPLACE(fcs.deposito, '.', ''), ',', '.')::numeric AS valorcredito,
     REPLACE(REPLACE(fcs.deposito, '.', ''), ',', '.')::numeric AS valorsaldo,
-    1 AS historico, -- Código de histórico padrão. Verifique se é sempre 1.
-    -- Descrição do histórico gerada dinamicamente, seguindo o padrão do sistema.
-    -- ATENÇÃO: Substitua 'fcs.nome' pelo nome da coluna que contém o nome do favorecido.
+    1 AS historico, 
+    
     'VLR REF. ' || 
     (CASE 
         WHEN fcs.tipo_pagamento = '1' THEN 'FOLHA DE PGTO ' || TO_CHAR(CURRENT_DATE, 'MMYYYY')
@@ -209,8 +217,8 @@ SELECT
     2 AS apropriacao,
     2 AS contabilizar,
     fcs.cpf AS cnpjcpfcodigo
-FROM folha_com_sequencia fcs
-JOIN Reduzido_Codigo rc ON fcs.cpf = rc.cpf;
+FROM pub_folha_com_sequencia fcs
+JOIN pub_Reduzido_Codigo rc ON fcs.cpf = rc.cpf;
 
 -- ETAPA 3.3: Inserir em 'Contaapagar_contabilizacao_filial'
 INSERT INTO Contaapagar_contabilizacao_filial (
@@ -228,7 +236,7 @@ SELECT
     1 AS filialcontabilizado,
     REPLACE(REPLACE(fcs.deposito, '.', ''), ',', '.')::numeric AS valorsaldo,
     REPLACE(REPLACE(fcs.deposito, '.', ''), ',', '.')::numeric AS valorcredito
-FROM folha_com_sequencia fcs;
+FROM pub_folha_com_sequencia fcs;
 
 -- ETAPA 3.4: Inserir em 'Contaapagar_contabilizacao_filial_unidade'
 INSERT INTO Contaapagar_contabilizacao_filial_unidade (
@@ -247,12 +255,11 @@ SELECT
     1 AS unidadecontabilizado,
     REPLACE(REPLACE(fcs.deposito, '.', ''), ',', '.')::numeric AS valorsaldo,
     REPLACE(REPLACE(fcs.deposito, '.', ''), ',', '.')::numeric AS valorcredito
-FROM folha_com_sequencia fcs;
+FROM pub_folha_com_sequencia fcs;
 
 
 -- ETAPA 4: ATUALIZAÇÃO DO STATUS (SEMÁFORO) VIA FUNÇÃO DE SISTEMA
--- Esta é a forma correta de alterar o status do título, garantindo que todas as
--- regras de negócio e logs de auditoria do sistema sejam executados.
+
 SELECT Fnc_trocasemaforo_contaapagar(
     1,                          -- Parâmetro: grupo
     1,                          -- Parâmetro: empresa
@@ -260,10 +267,10 @@ SELECT Fnc_trocasemaforo_contaapagar(
     1,                          -- Parâmetro: unidade
     fcs.nova_sequencia,         -- Parâmetro: sequencia do título a ser alterado
     1,                          -- Parâmetro: novo_status_semaforo (1 = Amarelo/Liberado para Pgto)
-    55,                         -- Parâmetro: codigousuario que executa a ação
+    {?SESSION.CodigoUsuario},                         -- Parâmetro: codigousuario que executa a ação
     1                           -- Parâmetro: [verificar funcionalidade, usado '1' conforme log]
 )
-FROM folha_com_sequencia fcs;
+FROM pub_folha_com_sequencia fcs;
 
 
 -- ETAPA 5: LIMPEZA DA TABELA DE ORIGEM
